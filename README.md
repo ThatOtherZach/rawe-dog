@@ -97,4 +97,6 @@ MIT License — see [LICENSE](LICENSE) file.
 
 Originally inspired by a deeply personalized internal system. Released publicly because good tools shouldn't stay locked in one person's workflow.
 
-If this saves you time or helps you get interviews, you're welcome to send some sats via the address in [DONATE.md](DONATE.md).
+**— [@ThatOtherZach](https://x.com/ThatOtherZach)**
+
+If this saves you time or helps you get interviews, you're welcome to send some crypto via the address in [DONATE.md](DONATE.md).
