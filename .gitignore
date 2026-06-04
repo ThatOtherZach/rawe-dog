@@ -1,6 +1,6 @@
-# RAWE Dog - Personal data should never be committed
-master-profile.md
-references/
+# RAWE Dog - Only ignore real personal data at root level
+/master-profile.md
+/references/
 *.local.md
 .env
 .DS_Store
