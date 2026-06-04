@@ -1,0 +1,12 @@
+# RAWE Dog - Personal data should never be committed
+master-profile.md
+references/
+*.local.md
+.env
+.DS_Store
+
+# Common LLM / editor files
+*.log
+*.tmp
+.idea/
+.vscode/
