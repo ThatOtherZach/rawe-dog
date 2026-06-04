@@ -7,3 +7,5 @@ If this framework actually helps you land interviews or makes your job search le
 No pressure. This is free and open source. Use it, improve it, share it.
 
 Thanks for being the kind of person who values good tools over free ones.
+
+Go get'em!

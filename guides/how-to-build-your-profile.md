@@ -35,6 +35,5 @@ Spending time on these two tables will improve output quality more than almost a
 - Write in your natural voice. The LLM will match it.
 - Quantify wherever you can (even rough estimates are better than nothing).
 - If you have strong character references with good quotes, include 1–2 short ones — they can be powerful in cover letters when they fit.
-- Review the full example in `examples/full-example/` to see what a well-built profile looks like.
 
 The upfront work is real, but once it's done, tailoring resumes becomes dramatically faster and higher quality.
