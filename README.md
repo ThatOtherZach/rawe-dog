@@ -1,5 +1,5 @@
 # RAWE Dog AI Skill
-Resume And Work Experience
+**R**esume **A**nd **W**ork **E**xperience
 
 **Your personal hiring manager AI Skill.**
 
@@ -97,6 +97,8 @@ MIT License — see [LICENSE](LICENSE) file.
 ## Credits
 
 Originally inspired by a personalized internal system. Released publicly because good tools shouldn't stay locked in one person's workflow and I can't be bothered to try to make a product that would require so much detailed personal information to be profitable - it was more than a wee bit scummy :P
+
+Use it and hit'em with that RAWE Dog, or don't; you do you.
 
 **— [@ThatOtherZach](https://x.com/ThatOtherZach)**
 
