@@ -166,6 +166,9 @@ export default function SettingsPage() {
       <section className="panel p-5">
         <div className="mb-4 flex items-center gap-2">
           <h1 className="mr-auto text-xl font-semibold">Settings</h1>
+          <span className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}>
+            TheirStack key {settings?.hasTheirstackKey ? "set" : "missing"}
+          </span>
           <span className={`badge ${settings?.hasApiKey ? "badge-ok" : "badge-bad"}`}>
             API key {settings?.hasApiKey ? "set" : "missing"}
           </span>
@@ -202,6 +205,40 @@ export default function SettingsPage() {
                 console.x.ai
               </a>
               . Keys are stored locally in your server's data directory.
+            </p>
+          </div>
+
+          <div>
+            <label className="label">TheirStack API key</label>
+            {settings?.hasTheirstackKey && (
+              <p className="mb-2 text-xs text-[var(--muted)]">
+                Current:{" "}
+                <code className="text-[var(--accent)]">{settings.theirstackKeyMasked}</code>
+              </p>
+            )}
+            <input
+              className="input"
+              type="password"
+              placeholder={
+                settings?.hasTheirstackKey
+                  ? "Enter new key to replace, or leave blank to keep current"
+                  : "Paste your TheirStack API key"
+              }
+              value={theirstackKey}
+              onChange={(e) => setTheirstackKey(e.target.value)}
+              disabled={busy}
+            />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Powers the Postings page (live job search). Get a free key at{" "}
+              <a
+                href="https://theirstack.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[var(--accent)] underline"
+              >
+                theirstack.com
+              </a>{" "}
+              — 200 job credits/month free, 1 credit per fetched posting.
             </p>
           </div>
 
@@ -276,7 +313,12 @@ export default function SettingsPage() {
             </button>
             {settings?.hasApiKey && (
               <button className="btn" onClick={() => void clearKey()} disabled={busy}>
-                Clear key
+                Clear xAI key
+              </button>
+            )}
+            {settings?.hasTheirstackKey && (
+              <button className="btn" onClick={() => void clearTheirstackKey()} disabled={busy}>
+                Clear TheirStack key
               </button>
             )}
           </div>
@@ -293,62 +335,6 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
-      </section>
-
-      <section className="panel p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <h2 className="mr-auto text-base font-semibold">Job search (Postings)</h2>
-          <span
-            className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}
-          >
-            TheirStack key {settings?.hasTheirstackKey ? "set" : "missing"}
-          </span>
-        </div>
-        <label className="label">TheirStack API key</label>
-        {settings?.hasTheirstackKey && (
-          <p className="mb-2 text-xs text-[var(--muted)]">
-            Current:{" "}
-            <code className="text-[var(--accent)]">
-              {settings.theirstackKeyMasked}
-            </code>
-          </p>
-        )}
-        <input
-          className="input"
-          type="password"
-          placeholder={
-            settings?.hasTheirstackKey
-              ? "Enter new key to replace, or leave blank to keep current"
-              : "Paste your TheirStack API key"
-          }
-          value={theirstackKey}
-          onChange={(e) => setTheirstackKey(e.target.value)}
-          disabled={busy}
-        />
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          Powers the Postings page (live job search). Get a free key at{" "}
-          <a
-            href="https://theirstack.com"
-            target="_blank"
-            rel="noreferrer"
-            className="text-[var(--accent)] underline"
-          >
-            theirstack.com
-          </a>{" "}
-          — 200 job credits/month free, 1 credit per fetched posting. Saved with
-          the Save button above; stored locally in your server's data directory.
-        </p>
-        {settings?.hasTheirstackKey && (
-          <div className="mt-3">
-            <button
-              className="btn"
-              onClick={() => void clearTheirstackKey()}
-              disabled={busy}
-            >
-              Clear TheirStack key
-            </button>
-          </div>
-        )}
       </section>
 
       <section className="panel p-5">
