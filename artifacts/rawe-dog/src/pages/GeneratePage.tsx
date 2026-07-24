@@ -838,7 +838,7 @@ export default function GeneratePage() {
               onClick={() => void runFull()}
               title="Skip manual review; run the full pipeline automatically"
             >
-              {busy ? "Working…" : "Generate all (auto)"}
+              {busy ? "Working…" : "Generate (Auto)"}
             </button>
             <p className="shrink-0 text-xs leading-relaxed text-[var(--muted)]">
               Core guardrails always apply. Selection picks evidence by ID, four
