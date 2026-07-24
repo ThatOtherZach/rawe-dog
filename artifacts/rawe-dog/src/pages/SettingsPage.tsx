@@ -184,18 +184,27 @@ export default function SettingsPage() {
           If this framework actually helps you land interviews or makes your job search less
           soul-crushing, and you feel like throwing some crypto my way, here's an Ethereum address:
         </p>
-        <div className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[#0c0e13] px-4 py-3">
-          <code className="flex-1 break-all font-mono text-sm text-[var(--accent)]">
-            0xC300A97f4ce2f9D4B02106045374c4C5eDb349af
-          </code>
-          <button
-            className="btn shrink-0"
-            onClick={() =>
-              void navigator.clipboard.writeText("0xC300A97f4ce2f9D4B02106045374c4C5eDb349af")
-            }
-          >
-            Copy
-          </button>
+        <div className="flex flex-wrap items-center gap-4">
+          <img
+            src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&bgcolor=0c0e13&color=ffffff&data=0xC300A97f4ce2f9D4B02106045374c4C5eDb349af"
+            alt="QR code for Ethereum address"
+            width={120}
+            height={120}
+            className="shrink-0 rounded-lg border border-[var(--border)]"
+          />
+          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-[var(--border)] bg-[#0c0e13] px-4 py-3">
+            <code className="flex-1 break-all font-mono text-sm text-[var(--accent)]">
+              0xC300A97f4ce2f9D4B02106045374c4C5eDb349af
+            </code>
+            <button
+              className="btn shrink-0"
+              onClick={() =>
+                void navigator.clipboard.writeText("0xC300A97f4ce2f9D4B02106045374c4C5eDb349af")
+              }
+            >
+              Copy
+            </button>
+          </div>
         </div>
         <p className="mt-3 text-sm text-[var(--muted)]">
           No pressure. This is free and open source. Use it, improve it, share it.
