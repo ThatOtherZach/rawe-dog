@@ -53,7 +53,8 @@ function isSchemaFormatError(err: unknown): boolean {
     msg.includes("response_format") ||
     msg.includes("json_schema") ||
     msg.includes("schema") ||
-    msg.includes("structured")
+    msg.includes("structured") ||
+    msg.includes("no body") // model rejected the request with an empty 400 — likely unsupported response_format
   );
 }
 
