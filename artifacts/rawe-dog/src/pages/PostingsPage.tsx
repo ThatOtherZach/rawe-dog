@@ -885,65 +885,6 @@ export default function PostingsPage() {
                         dismissed
                       </span>
                     )}
-                    <div className="ml-auto flex flex-wrap items-center gap-2">
-                      {p.url && (
-                        <a
-                          className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
-                          href={p.url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          original ↗
-                        </a>
-                      )}
-                      {!isApplied && (
-                        <button
-                          className="btn !px-2.5 !py-1 text-xs"
-                          disabled={isPatching}
-                          onClick={() => void patchStatus(p.id, "applied")}
-                          title="Mark as applied"
-                        >
-                          {isPatching ? "…" : "Mark applied"}
-                        </button>
-                      )}
-                      {isApplied && (
-                        <button
-                          className="btn !px-2.5 !py-1 text-xs"
-                          disabled={isPatching}
-                          onClick={() => void patchStatus(p.id, "new")}
-                          title="Undo applied"
-                        >
-                          {isPatching ? "…" : "Undo applied"}
-                        </button>
-                      )}
-                      {!isDismissed ? (
-                        <button
-                          className="btn !px-2.5 !py-1 text-xs text-[var(--muted)]"
-                          disabled={isPatching}
-                          onClick={() => void patchStatus(p.id, "dismissed")}
-                          title="Hide this posting"
-                        >
-                          {isPatching ? "…" : "Dismiss"}
-                        </button>
-                      ) : (
-                        <button
-                          className="btn !px-2.5 !py-1 text-xs"
-                          disabled={isPatching}
-                          onClick={() => void patchStatus(p.id, "new")}
-                          title="Restore to active list"
-                        >
-                          {isPatching ? "…" : "Restore"}
-                        </button>
-                      )}
-                      {!isDismissed && (
-                        <Link
-                          href={`/?posting=${encodeURIComponent(p.id)}`}
-                          className="btn btn-primary !px-3 !py-1.5 text-xs"
-                        >
-                          Generate kit
-                        </Link>
-                      )}
-                    </div>
                   </div>
                   {meta && (
                     <p className="mt-1 text-xs text-[var(--muted)]">{meta}</p>
@@ -966,6 +907,66 @@ export default function PostingsPage() {
                       ))}
                     </p>
                   )}
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {p.url && (
+                      <a
+                        className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
+                        href={p.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        original ↗
+                      </a>
+                    )}
+                    {!isApplied && (
+                      <button
+                        className="btn !px-2.5 !py-1 text-xs"
+                        disabled={isPatching}
+                        onClick={() => void patchStatus(p.id, "applied")}
+                        title="Mark as applied"
+                      >
+                        {isPatching ? "…" : "Mark applied"}
+                      </button>
+                    )}
+                    {isApplied && (
+                      <button
+                        className="btn !px-2.5 !py-1 text-xs"
+                        disabled={isPatching}
+                        onClick={() => void patchStatus(p.id, "new")}
+                        title="Undo applied"
+                      >
+                        {isPatching ? "…" : "Undo applied"}
+                      </button>
+                    )}
+                    {!isDismissed ? (
+                      <button
+                        className="btn !px-2.5 !py-1 text-xs text-[var(--muted)]"
+                        disabled={isPatching}
+                        onClick={() => void patchStatus(p.id, "dismissed")}
+                        title="Hide this posting"
+                      >
+                        {isPatching ? "…" : "Dismiss"}
+                      </button>
+                    ) : (
+                      <button
+                        className="btn !px-2.5 !py-1 text-xs"
+                        disabled={isPatching}
+                        onClick={() => void patchStatus(p.id, "new")}
+                        title="Restore to active list"
+                      >
+                        {isPatching ? "…" : "Restore"}
+                      </button>
+                    )}
+                    {!isDismissed && (
+                      <Link
+                        href={`/?posting=${encodeURIComponent(p.id)}`}
+                        className="btn btn-primary !px-3 !py-1.5 text-xs"
+                      >
+                        Generate kit
+                      </Link>
+                    )}
+                  </div>
 
                   {expanded && (
                     <div className="mt-3 border-t border-[var(--border)] pt-3">
