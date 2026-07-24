@@ -15,6 +15,21 @@ export function cleanDocumentMarkdown(raw: string): string {
   return s.trim();
 }
 
+/**
+ * Enforce the resume/cover dash policy deterministically:
+ * - em/en dash used as a bullet marker → markdown "-" bullet
+ * - en/em dash in numeric ranges → plain hyphen (2019-2023)
+ * - any remaining em/en dash punctuation → comma
+ * Markdown hyphens (bullets, tables, hr) are untouched.
+ */
+export function sanitizeDashPunctuation(md: string): string {
+  let s = md || "";
+  s = s.replace(/^([ \t]*)[—–]\s+/gm, "$1- ");
+  s = s.replace(/(\d)\s?[–—]\s?(\d)/g, "$1-$2");
+  s = s.replace(/[ \t]*[—–][ \t]*/g, ", ");
+  return s;
+}
+
 export function cleanKitFields<T extends Record<string, unknown>>(kit: T): T {
   const out = { ...kit } as T;
   for (const key of Object.keys(out)) {

@@ -4,7 +4,12 @@ import { getSettingsPath, getDataRoot } from "./paths.js";
 
 export type AppSettings = {
   apiKey: string;
+  /** Premium model used for document drafting (and any stage without an override). */
   model: string;
+  /** Optional fast/cheap model for Pass 1 experience selection. Empty = use `model`. */
+  selectionModel: string;
+  /** Optional fast/cheap model for verification + JSON repair. Empty = use `model`. */
+  verificationModel: string;
 };
 
 const DEFAULT_MODEL = "grok-4.5";
@@ -13,6 +18,8 @@ export function getDefaultSettings(): AppSettings {
   return {
     apiKey: process.env["XAI_API_KEY"]?.trim() || "",
     model: process.env["XAI_MODEL"]?.trim() || DEFAULT_MODEL,
+    selectionModel: process.env["XAI_SELECTION_MODEL"]?.trim() || "",
+    verificationModel: process.env["XAI_VERIFICATION_MODEL"]?.trim() || "",
   };
 }
 
@@ -27,6 +34,8 @@ export function loadSettings(): AppSettings {
     return {
       apiKey: (raw.apiKey ?? defaults.apiKey).trim(),
       model: (raw.model ?? defaults.model).trim() || DEFAULT_MODEL,
+      selectionModel: (raw.selectionModel ?? defaults.selectionModel).trim(),
+      verificationModel: (raw.verificationModel ?? defaults.verificationModel).trim(),
     };
   } catch {
     return defaults;
@@ -42,6 +51,14 @@ export function saveSettings(partial: Partial<AppSettings>): AppSettings {
       partial.model !== undefined
         ? partial.model.trim() || DEFAULT_MODEL
         : current.model,
+    selectionModel:
+      partial.selectionModel !== undefined
+        ? partial.selectionModel.trim()
+        : current.selectionModel,
+    verificationModel:
+      partial.verificationModel !== undefined
+        ? partial.verificationModel.trim()
+        : current.verificationModel,
   };
   mkdirSync(getDataRoot(), { recursive: true });
   writeFileSync(getSettingsPath(), JSON.stringify(next, null, 2), "utf8");
@@ -60,6 +77,8 @@ export function publicSettings() {
     hasApiKey: Boolean(s.apiKey),
     apiKeyMasked: maskApiKey(s.apiKey),
     model: s.model,
+    selectionModel: s.selectionModel,
+    verificationModel: s.verificationModel,
   };
 }
 

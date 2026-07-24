@@ -17,11 +17,18 @@ router.put("/settings", async (req: Request, res: Response) => {
   const body = req.body as {
     apiKey?: string;
     model?: string;
+    selectionModel?: string;
+    verificationModel?: string;
     clearApiKey?: boolean;
   };
 
   const current = loadSettings();
-  const partial: { apiKey?: string; model?: string } = {};
+  const partial: {
+    apiKey?: string;
+    model?: string;
+    selectionModel?: string;
+    verificationModel?: string;
+  } = {};
 
   if (body.clearApiKey) {
     partial.apiKey = "";
@@ -31,6 +38,13 @@ router.put("/settings", async (req: Request, res: Response) => {
 
   if (typeof body.model === "string") {
     partial.model = body.model.trim();
+  }
+  // Empty string is meaningful for stage models: "use the drafting model".
+  if (typeof body.selectionModel === "string") {
+    partial.selectionModel = body.selectionModel.trim();
+  }
+  if (typeof body.verificationModel === "string") {
+    partial.verificationModel = body.verificationModel.trim();
   }
 
   if (partial.apiKey === undefined) {

@@ -1,6 +1,6 @@
-# [Project name]
+# RAWE Dog — Application Kit
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Generates tailored job-application kits (resume, cover letter, alignment notes, STAR prep) from a job posting and the user's personal knowledge library, grounded strictly in the user's own experience files via xAI models.
 
 ## Run & Operate
 
@@ -22,15 +22,22 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server` — Express 5 backend under `/api`; generation pipeline in `src/lib` (`generate.ts` orchestrator, `prompt.ts`, `context-pack.ts`, `xai.ts`, `verify.ts`, `schemas.ts`), routes in `src/routes`
+- `artifacts/rawe-dog` — React/Vite frontend (root path); pages in `src/pages`
+- App data (library uploads, settings) lives in `artifacts/api-server/data/` (gitignored runtime state)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Atomized generation: one selection call → four parallel per-document draft calls → one verification call → targeted repair of flagged docs (max one round). All stages use API-enforced JSON schemas (`response_format: json_schema, strict`) with json_object fallback, truncation retry, and cheap malformed-JSON repair.
+- Experiences are selected by stable catalog IDs (E1, E2, … assigned by library file id order); the selection schema constrains IDs via enum, and zero resolved leads is a hard 400 — no silent fallback.
+- Per-stage models: settings support optional fast models for selection/verification; drafting uses the premium model.
+- Progressive delivery over SSE (`mode: "stream"` on POST /api/generate): status/pass1/draft/qa/repair/done events; UI fills kit tabs as drafts land and shows a QA report panel.
+- Job postings and notes are fenced as untrusted data in prompts to resist embedded prompt injection.
+- `XAI_BASE_URL` env var overrides the xAI endpoint (dev/test hook for mock-server e2e testing).
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Paste a job posting → Pass 1 selects lead experiences from the library (reviewable) → four documents draft in parallel → a verification pass checks grounding, cross-document consistency, form rules, and keyword coverage → flagged documents get one repair round. Kit tabs fill progressively; a quality report shows findings, keyword coverage, and repair status. Library page manages the knowledge files; Settings manages the xAI key and per-stage models.
 
 ## User preferences
 

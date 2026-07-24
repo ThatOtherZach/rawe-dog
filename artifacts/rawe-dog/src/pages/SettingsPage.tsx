@@ -4,12 +4,24 @@ type PublicSettings = {
   hasApiKey: boolean;
   apiKeyMasked: string;
   model: string;
+  selectionModel: string;
+  verificationModel: string;
 };
+
+const MODELS = [
+  "grok-4.5",
+  "grok-4.5-mini",
+  "grok-3",
+  "grok-3-mini",
+  "grok-3-fast",
+];
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("grok-4.5");
+  const [selectionModel, setSelectionModel] = useState("");
+  const [verificationModel, setVerificationModel] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -19,15 +31,24 @@ export default function SettingsPage() {
     const data = (await res.json()) as PublicSettings;
     setSettings(data);
     setModel(data.model || "grok-4.5");
+    setSelectionModel(data.selectionModel || "");
+    setVerificationModel(data.verificationModel || "");
   }, []);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  async function save(opts?: { key?: string; modelValue?: string }) {
-    const body: { model: string; apiKey?: string } = {
-      model: opts?.modelValue ?? model,
+  async function save(opts?: { key?: string }) {
+    const body: {
+      model: string;
+      selectionModel: string;
+      verificationModel: string;
+      apiKey?: string;
+    } = {
+      model,
+      selectionModel,
+      verificationModel,
     };
     const keyToSend = opts?.key ?? apiKey;
     if (keyToSend.trim()) body.apiKey = keyToSend.trim();
@@ -87,7 +108,12 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clearApiKey: true, model }),
+        body: JSON.stringify({
+          clearApiKey: true,
+          model,
+          selectionModel,
+          verificationModel,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error((data as { error?: string }).error || "Failed");
@@ -100,14 +126,6 @@ export default function SettingsPage() {
       setBusy(false);
     }
   }
-
-  const MODELS = [
-    "grok-4.5",
-    "grok-4.5-mini",
-    "grok-3",
-    "grok-3-mini",
-    "grok-3-fast",
-  ];
 
   return (
     <div className="space-y-6">
@@ -154,7 +172,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label className="label">Model</label>
+            <label className="label">Drafting model</label>
             <select
               className="select"
               value={model}
@@ -167,6 +185,52 @@ export default function SettingsPage() {
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Writes the four kit documents. Use your strongest model here.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label">Selection model (Pass 1)</label>
+              <select
+                className="select"
+                value={selectionModel}
+                onChange={(e) => setSelectionModel(e.target.value)}
+                disabled={busy}
+              >
+                <option value="">Same as drafting model</option>
+                {MODELS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Picks lead experiences and keywords. A fast/cheap model works
+                well.
+              </p>
+            </div>
+            <div>
+              <label className="label">Verification model</label>
+              <select
+                className="select"
+                value={verificationModel}
+                onChange={(e) => setVerificationModel(e.target.value)}
+                disabled={busy}
+              >
+                <option value="">Same as drafting model</option>
+                {MODELS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Checks drafts for grounding, consistency, form, and keyword
+                coverage.
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -203,7 +267,9 @@ export default function SettingsPage() {
           RAWE Dog generates tailored application kits (resume, cover letter,
           alignment notes, STAR prep) from a job posting and your personal
           knowledge library, grounded entirely in your own experience files.
-          No fabrication — core guardrails are immutable.
+          Every run drafts documents in parallel, then verifies grounding and
+          consistency before delivery. No fabrication — core guardrails are
+          immutable.
         </p>
       </section>
     </div>

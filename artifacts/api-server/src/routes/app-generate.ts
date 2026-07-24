@@ -1,13 +1,22 @@
 import { Router, type Request, type Response } from "express";
 import {
   generateApplicationKit,
-  runPass1Only,
-  runPass2,
+  runSelectionOnly,
+  runKitFromSelection,
   type GenerateProgressEvent,
 } from "../lib/generate.js";
-import { normalizePass1, type Pass1Selection } from "../lib/parse-kit.js";
+import type { Pass1Selection } from "../lib/parse-kit.js";
 
 const router = Router();
+
+function errorStatus(message: string): number {
+  return message.includes("API key") ||
+    message.includes("Library") ||
+    message.includes("required") ||
+    message.includes("matched no library files")
+    ? 400
+    : 500;
+}
 
 router.post("/generate", async (req: Request, res: Response) => {
   try {
@@ -36,6 +45,7 @@ router.post("/generate", async (req: Request, res: Response) => {
       res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
       res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders();
 
       const send = (event: GenerateProgressEvent) => {
@@ -43,7 +53,13 @@ router.post("/generate", async (req: Request, res: Response) => {
       };
 
       try {
-        await generateApplicationKit(input, send);
+        // With a provided selection this is the Pass 2 flow; without one it
+        // runs the full pipeline (selection → drafts → verify → repair).
+        if (body.selection) {
+          await runKitFromSelection(input, body.selection, send);
+        } else {
+          await generateApplicationKit(input, send);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         send({ type: "error", error: message });
@@ -55,7 +71,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     }
 
     if (mode === "pass1") {
-      const result = await runPass1Only(input);
+      const result = await runSelectionOnly(input);
       res.json({ ok: true, ...result });
       return;
     }
@@ -65,22 +81,17 @@ router.post("/generate", async (req: Request, res: Response) => {
         res.status(400).json({ ok: false, error: "selection is required for pass2" });
         return;
       }
-      const selection = normalizePass1(body.selection);
-      const result = await runPass2(input, selection);
+      const result = await runKitFromSelection(input, body.selection);
       res.json({ ok: true, ...result });
       return;
     }
 
-    // full one-shot
+    // full one-shot (JSON)
     const result = await generateApplicationKit(input);
     res.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const status =
-      message.includes("API key") || message.includes("Library")
-        ? 400
-        : 500;
-    res.status(status).json({ ok: false, error: message });
+    res.status(errorStatus(message)).json({ ok: false, error: message });
   }
 });
 
