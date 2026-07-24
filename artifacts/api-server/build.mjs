@@ -29,6 +29,14 @@ async function buildAll() {
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "*.node",
+      // Heavy PDF/doc packages that use native modules or dynamic requires
+      "pdfkit",
+      "pdf-parse",
+      "fontkit",
+      "@swc/helpers",
+      "docx",
+      "jszip",
+      "openai",
       "sharp",
       "better-sqlite3",
       "sqlite3",

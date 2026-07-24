@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "RAWE Dog — Application Kit"
+version = "1.0.0"
+id = "artifacts/rawe-dog"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24020
+
+[services.development]
+run = "pnpm --filter @workspace/rawe-dog run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/rawe-dog", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/rawe-dog/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24020"
+BASE_PATH = "/"

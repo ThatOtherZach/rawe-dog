@@ -1,8 +1,18 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
+import healthRouter from "./health.js";
+import appHealthRouter from "./app-health.js";
+import appSettingsRouter from "./app-settings.js";
+import appGenerateRouter from "./app-generate.js";
+import appLibraryRouter from "./app-library.js";
+import appExportRouter from "./app-export.js";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(appHealthRouter);
+router.use(appSettingsRouter);
+router.use(appGenerateRouter);
+router.use(appLibraryRouter);
+router.use(appExportRouter);
 
 export default router;
