@@ -452,7 +452,7 @@ export default function PostingsPage() {
               <span className="label !mb-0">Search filters</span>
               <span className="badge">
                 {state?.filtersSource === "derived"
-                  ? "derived from profile"
+                  ? "Filtered by Master Profile"
                   : "manual"}
               </span>
             </div>
@@ -516,7 +516,7 @@ export default function PostingsPage() {
               {state?.filtersSource && (
                 <span className="badge">
                   {state.filtersSource === "derived"
-                    ? "derived from profile"
+                    ? "Filtered by Master Profile"
                     : "manual"}
                 </span>
               )}
