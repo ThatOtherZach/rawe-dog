@@ -121,9 +121,9 @@ type SseEvent =
   | { type: "error"; error: string }
   | { type: "close" };
 
-type Tab = "resume" | "cover" | "alignment" | "star";
+type Tab = "resume" | "cover" | "alignment" | "star" | "quality";
 
-const TAB_TO_DOC: Record<Tab, DocKey> = {
+const TAB_TO_DOC: Partial<Record<Tab, DocKey>> = {
   resume: "resume",
   cover: "coverLetter",
   alignment: "alignmentNotes",
@@ -258,7 +258,7 @@ export default function GeneratePage() {
   }, []);
 
   const isMarkdownTab = tab === "alignment" || tab === "star";
-  const activeDoc = TAB_TO_DOC[tab];
+  const activeDoc: DocKey = TAB_TO_DOC[tab] ?? "resume";
   const activeMarkdown = docs[activeDoc] || "";
 
   const baseName = useMemo(() => {
@@ -273,6 +273,7 @@ export default function GeneratePage() {
       cover: `${baseName}_Cover_Letter`,
       alignment: `${baseName}_Alignment`,
       star: `${baseName}_STAR_Prep`,
+      quality: `${baseName}_Quality_Report`,
     };
     return map[tab];
   }, [baseName, tab]);
@@ -989,36 +990,40 @@ export default function GeneratePage() {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                className="btn btn-primary"
-                disabled={!activeMarkdown}
-                onClick={() => void copyActive()}
-              >
-                {copied ? "Copied!" : isMarkdownTab ? "Copy markdown" : "Copy"}
-              </button>
-              <button
-                className="btn"
-                disabled={exporting || !activeMarkdown}
-                onClick={() => void download("md")}
-              >
-                .md
-              </button>
-              {!isMarkdownTab && (
+              {tab !== "quality" && (
                 <>
                   <button
                     className="btn btn-primary"
-                    disabled={exporting || !activeMarkdown}
-                    onClick={() => void download("pdf")}
+                    disabled={!activeMarkdown}
+                    onClick={() => void copyActive()}
                   >
-                    PDF
+                    {copied ? "Copied!" : isMarkdownTab ? "Copy markdown" : "Copy"}
                   </button>
                   <button
                     className="btn"
                     disabled={exporting || !activeMarkdown}
-                    onClick={() => void download("docx")}
+                    onClick={() => void download("md")}
                   >
-                    DOCX
+                    .md
                   </button>
+                  {!isMarkdownTab && (
+                    <>
+                      <button
+                        className="btn btn-primary"
+                        disabled={exporting || !activeMarkdown}
+                        onClick={() => void download("pdf")}
+                      >
+                        PDF
+                      </button>
+                      <button
+                        className="btn"
+                        disabled={exporting || !activeMarkdown}
+                        onClick={() => void download("docx")}
+                      >
+                        DOCX
+                      </button>
+                    </>
+                  )}
                 </>
               )}
               <button
@@ -1040,7 +1045,7 @@ export default function GeneratePage() {
                 ["star", "STAR prep"],
               ] as const
             ).map(([id, label]) => {
-              const st = docStatus[TAB_TO_DOC[id]];
+              const st = docStatus[TAB_TO_DOC[id]!];
               return (
                 <button
                   key={id}
@@ -1066,6 +1071,22 @@ export default function GeneratePage() {
                 </button>
               );
             })}
+            <button
+              className="tab"
+              data-active={tab === "quality"}
+              onClick={() => { setTab("quality"); setCopied(false); }}
+            >
+              Quality
+              {(stage === "verifying" || stage === "repairing") && !qaReport && (
+                <span className="ml-1.5 inline-block animate-pulse text-[var(--muted)]">…</span>
+              )}
+              {qaReport && qaReport.counts.major > 0 && (
+                <span className="ml-1.5 text-xs text-[#ffd28f]">{qaReport.counts.major} major</span>
+              )}
+              {qaReport && qaReport.counts.major === 0 && qaReport.verdict !== "issues_found" && (
+                <span className="ml-1.5 text-xs text-[var(--accent)]">✓</span>
+              )}
+            </button>
           </div>
 
           {!activeMarkdown ? (
@@ -1123,6 +1144,113 @@ export default function GeneratePage() {
                 </div>
               </div>
             </div>
+          ) : tab === "quality" ? (
+            <div className="rounded-xl border border-[var(--border)] bg-[#0c0e13] p-4">
+              {/* header badges */}
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                {qaReport ? (
+                  <>
+                    <span
+                      className={`badge ${
+                        qaReport.verdict === "pass" || qaReport.verdict === "repaired"
+                          ? "badge-ok"
+                          : "badge-bad"
+                      }`}
+                    >
+                      {qaReport.verdict === "pass"
+                        ? "Passed"
+                        : qaReport.verdict === "repaired"
+                          ? "Repaired"
+                          : "Issues found"}
+                    </span>
+                    <span className="badge">
+                      {qaReport.counts.major} major · {qaReport.counts.minor} minor ·{" "}
+                      {qaReport.counts.info} info
+                    </span>
+                    {!qaReport.verifierRan && (
+                      <span className="badge badge-bad">automated checks only</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="badge animate-pulse">Verifying…</span>
+                )}
+              </div>
+
+              {qaReport && (
+                <>
+                  <p className="mb-4 text-sm text-[var(--muted)]">{qaReport.summary}</p>
+
+                  {qaReport.repairedDocuments.length > 0 && (
+                    <p className="mb-3 text-xs text-[var(--accent)]">
+                      Repaired: {qaReport.repairedDocuments.map((d) => DOC_LABELS[d]).join(", ")}
+                    </p>
+                  )}
+
+                  {qaReport.keywordCoverage.length > 0 && (
+                    <div className="mb-4">
+                      <p className="label mb-1.5">Keyword coverage (resume + cover letter)</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {qaReport.keywordCoverage.map((k) => (
+                          <span
+                            key={k.keyword}
+                            className={`rounded-full border px-2.5 py-0.5 text-xs ${
+                              k.covered
+                                ? "border-[color-mix(in_srgb,var(--accent)_50%,var(--border))] text-[var(--accent)]"
+                                : "border-[#7a5c2e] text-[#ffd28f]"
+                            }`}
+                            title={
+                              k.covered
+                                ? `In ${[k.inResume && "resume", k.inCoverLetter && "cover letter"].filter(Boolean).join(" + ")}`
+                                : "Not found in resume or cover letter"
+                            }
+                          >
+                            {k.covered ? "✓" : "✗"} {k.keyword}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {qaReport.findings.length > 0 ? (
+                    <div className="space-y-2">
+                      {qaReport.findings.map((f) => (
+                        <div
+                          key={f.id}
+                          className={`rounded-lg border px-3 py-2 text-sm ${severityClass(f.severity)}`}
+                        >
+                          <div className="mb-0.5 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide opacity-80">
+                            <span className="font-semibold">{f.severity}</span>
+                            <span>· {DOC_LABELS[f.document]}</span>
+                            <span>· {f.category}</span>
+                            <span>· {f.source}</span>
+                            {f.status === "repair_attempted" && (
+                              <span className="text-[var(--accent)]">· repair attempted</span>
+                            )}
+                          </div>
+                          <p className="text-[var(--text)]">{f.detail}</p>
+                          {f.suggestion && (
+                            <p className="mt-1 text-xs text-[var(--muted)]">
+                              Suggestion: {f.suggestion}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--muted)]">No issues found — all checks passed.</p>
+                  )}
+
+                  {stats?.models && (
+                    <p className="mt-4 text-xs text-[var(--muted)]">
+                      Models — selection: {stats.models.selection} · drafting:{" "}
+                      {stats.models.drafting} · verification: {stats.models.verification}
+                      {typeof stats.durationMs === "number" &&
+                        ` · ${(stats.durationMs / 1000).toFixed(1)}s total`}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
           ) : isMarkdownTab ? (
             <div className="rounded-xl border border-[var(--border)] bg-[#0c0e13] p-4">
               <p className="mb-3 text-xs text-[var(--muted)]">
@@ -1145,121 +1273,6 @@ export default function GeneratePage() {
                 {activeMarkdown}
               </div>
             </div>
-          )}
-        </section>
-      )}
-
-      {kitVisible && (stage === "verifying" || stage === "repairing" || qaReport) && (
-        <section className="panel p-5">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <h2 className="mr-auto text-lg font-semibold">Quality report</h2>
-            {qaReport ? (
-              <>
-                <span
-                  className={`badge ${
-                    qaReport.verdict === "pass"
-                      ? "badge-ok"
-                      : qaReport.verdict === "repaired"
-                        ? "badge-ok"
-                        : "badge-bad"
-                  }`}
-                >
-                  {qaReport.verdict === "pass"
-                    ? "Passed"
-                    : qaReport.verdict === "repaired"
-                      ? "Repaired"
-                      : "Issues found"}
-                </span>
-                <span className="badge">
-                  {qaReport.counts.major} major · {qaReport.counts.minor} minor ·{" "}
-                  {qaReport.counts.info} info
-                </span>
-                {!qaReport.verifierRan && (
-                  <span className="badge badge-bad">automated checks only</span>
-                )}
-              </>
-            ) : (
-              <span className="badge animate-pulse">Verifying…</span>
-            )}
-          </div>
-
-          {qaReport && (
-            <>
-              <p className="mb-4 text-sm text-[var(--muted)]">{qaReport.summary}</p>
-
-              {qaReport.repairedDocuments.length > 0 && (
-                <p className="mb-3 text-xs text-[var(--accent)]">
-                  Repaired: {qaReport.repairedDocuments.map((d) => DOC_LABELS[d]).join(", ")}
-                </p>
-              )}
-
-              {qaReport.keywordCoverage.length > 0 && (
-                <div className="mb-4">
-                  <p className="label mb-1.5">Keyword coverage (resume + cover letter)</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {qaReport.keywordCoverage.map((k) => (
-                      <span
-                        key={k.keyword}
-                        className={`rounded-full border px-2.5 py-0.5 text-xs ${
-                          k.covered
-                            ? "border-[color-mix(in_srgb,var(--accent)_50%,var(--border))] text-[var(--accent)]"
-                            : "border-[#7a5c2e] text-[#ffd28f]"
-                        }`}
-                        title={
-                          k.covered
-                            ? `In ${[k.inResume && "resume", k.inCoverLetter && "cover letter"].filter(Boolean).join(" + ")}`
-                            : "Not found in resume or cover letter"
-                        }
-                      >
-                        {k.covered ? "✓" : "✗"} {k.keyword}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {qaReport.findings.length > 0 ? (
-                <div className="space-y-2">
-                  {qaReport.findings.map((f) => (
-                    <div
-                      key={f.id}
-                      className={`rounded-lg border px-3 py-2 text-sm ${severityClass(f.severity)}`}
-                    >
-                      <div className="mb-0.5 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide opacity-80">
-                        <span className="font-semibold">{f.severity}</span>
-                        <span>· {DOC_LABELS[f.document]}</span>
-                        <span>· {f.category}</span>
-                        <span>· {f.source}</span>
-                        {f.status === "repair_attempted" && (
-                          <span className="text-[var(--accent)]">
-                            · repair attempted
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[var(--text)]">{f.detail}</p>
-                      {f.suggestion && (
-                        <p className="mt-1 text-xs text-[var(--muted)]">
-                          Suggestion: {f.suggestion}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-[var(--muted)]">
-                  No issues found — all checks passed.
-                </p>
-              )}
-
-              {stats?.models && (
-                <p className="mt-4 text-xs text-[var(--muted)]">
-                  Models — selection: {stats.models.selection} · drafting:{" "}
-                  {stats.models.drafting} · verification: {stats.models.verification}
-                  {typeof stats.durationMs === "number" &&
-                    ` · ${(stats.durationMs / 1000).toFixed(1)}s total`}
-                </p>
-              )}
-            </>
           )}
         </section>
       )}
