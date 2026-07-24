@@ -1,0 +1,26 @@
+{
+  "filters": {
+    "titleQueries": [
+      "Salesforce Admin",
+      "Salesforce Consultant",
+      "Business Systems Analyst",
+      "Salesforce Administrator"
+    ],
+    "countryCodes": [
+      "CA"
+    ],
+    "remoteOnly": false,
+    "seniority": [
+      "mid_level",
+      "senior"
+    ],
+    "maxAgeDays": 14,
+    "minSalaryUsd": null,
+    "descriptionKeywords": [],
+    "limit": 25
+  },
+  "filtersSource": "derived",
+  "lastRefreshAt": null,
+  "lastRefreshStats": null,
+  "postings": []
+}
