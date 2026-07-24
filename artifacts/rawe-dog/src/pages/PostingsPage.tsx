@@ -186,6 +186,7 @@ export default function PostingsPage() {
   const [deriving, setDeriving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshPct, setRefreshPct] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +198,22 @@ export default function PostingsPage() {
 
   const [showDismissed, setShowDismissed] = useState(false);
   const [patchingId, setPatchingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!refreshing) {
+      setRefreshPct(0);
+      return;
+    }
+    setRefreshPct(0);
+    const id = setInterval(() => {
+      setRefreshPct((prev) => {
+        if (prev >= 95) return prev;
+        const step = Math.max(0.25, (95 - prev) * 0.035);
+        return Math.min(95, prev + step);
+      });
+    }, 350);
+    return () => clearInterval(id);
+  }, [refreshing]);
 
   const fillForm = useCallback((f: Filters) => {
     setTitlesText(f.titleQueries.join(", "));
@@ -684,9 +701,28 @@ export default function PostingsPage() {
         </div>
 
         {refreshing && (
-          <p className="mt-3 animate-pulse text-sm text-[var(--muted)]">
-            Fetching postings and scoring fit — this can take a minute…
-          </p>
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-between text-xs text-[var(--muted)]">
+              <span>
+                {refreshPct < 18
+                  ? "Contacting TheirStack…"
+                  : refreshPct < 50
+                  ? "Retrieving job listings…"
+                  : refreshPct < 82
+                  ? "Scoring fit with xAI…"
+                  : refreshPct < 95
+                  ? "Ranking results…"
+                  : "Almost there…"}
+              </span>
+              <span>{Math.round(refreshPct)}%</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
+              <div
+                className="h-full rounded-full bg-[var(--accent)] transition-all duration-300 ease-out"
+                style={{ width: `${refreshPct}%` }}
+              />
+            </div>
+          </div>
         )}
 
         {message && (
