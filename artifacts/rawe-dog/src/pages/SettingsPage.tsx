@@ -69,8 +69,8 @@ export default function SettingsPage() {
     const data = await res.json();
     if (!res.ok) throw new Error((data as { error?: string }).error || "Save failed");
     setSettings(data as PublicSettings);
-    if (keyToSend.trim()) setApiKey("");
-    if (theirstackKey.trim()) setTheirstackKey("");
+    if (keyToSend.trim()) { setApiKey(""); setShowXaiInput(false); }
+    if (theirstackKey.trim()) { setTheirstackKey(""); setShowTheirstackInput(false); }
     return data as PublicSettings;
   }
 
