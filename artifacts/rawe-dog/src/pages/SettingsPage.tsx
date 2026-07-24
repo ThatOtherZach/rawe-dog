@@ -26,6 +26,8 @@ export default function SettingsPage() {
   const [model, setModel] = useState("grok-4.5");
   const [selectionModel, setSelectionModel] = useState("");
   const [verificationModel, setVerificationModel] = useState("");
+  const [showXaiInput, setShowXaiInput] = useState(false);
+  const [showTheirstackInput, setShowTheirstackInput] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -177,69 +179,82 @@ export default function SettingsPage() {
         <div className="space-y-5">
           <div>
             <label className="label">xAI API key</label>
-            {settings?.hasApiKey && (
-              <p className="mb-2 text-xs text-[var(--muted)]">
-                Current: <code className="text-[var(--accent)]">{settings.apiKeyMasked}</code>
-              </p>
+            {settings?.hasApiKey && !showXaiInput ? (
+              <div className="flex items-center gap-3">
+                <code className="text-sm text-[var(--accent)]">{settings.apiKeyMasked}</code>
+                <button
+                  className="btn text-xs"
+                  onClick={() => setShowXaiInput(true)}
+                  disabled={busy}
+                >
+                  Replace
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  className="input"
+                  type="password"
+                  placeholder="xai-…"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  disabled={busy}
+                  autoFocus={settings?.hasApiKey}
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Get your key at{" "}
+                  <a
+                    href="https://console.x.ai"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[var(--accent)] underline"
+                  >
+                    console.x.ai
+                  </a>
+                  . Keys are stored locally in your server's data directory.
+                </p>
+              </>
             )}
-            <input
-              className="input"
-              type="password"
-              placeholder={
-                settings?.hasApiKey
-                  ? "Enter new key to replace, or leave blank to keep current"
-                  : "xai-…"
-              }
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              disabled={busy}
-            />
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Get your key at{" "}
-              <a
-                href="https://console.x.ai"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[var(--accent)] underline"
-              >
-                console.x.ai
-              </a>
-              . Keys are stored locally in your server's data directory.
-            </p>
           </div>
 
           <div>
             <label className="label">TheirStack API key</label>
-            {settings?.hasTheirstackKey && (
-              <p className="mb-2 text-xs text-[var(--muted)]">
-                Current:{" "}
-                <code className="text-[var(--accent)]">{settings.theirstackKeyMasked}</code>
-              </p>
+            {settings?.hasTheirstackKey && !showTheirstackInput ? (
+              <div className="flex items-center gap-3">
+                <code className="text-sm text-[var(--accent)]">{settings.theirstackKeyMasked}</code>
+                <button
+                  className="btn text-xs"
+                  onClick={() => setShowTheirstackInput(true)}
+                  disabled={busy}
+                >
+                  Replace
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  className="input"
+                  type="password"
+                  placeholder="Paste your TheirStack API key"
+                  value={theirstackKey}
+                  onChange={(e) => setTheirstackKey(e.target.value)}
+                  disabled={busy}
+                  autoFocus={settings?.hasTheirstackKey}
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Powers the Postings page (live job search). Get a free key at{" "}
+                  <a
+                    href="https://theirstack.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[var(--accent)] underline"
+                  >
+                    theirstack.com
+                  </a>{" "}
+                  — 200 job credits/month free, 1 credit per fetched posting.
+                </p>
+              </>
             )}
-            <input
-              className="input"
-              type="password"
-              placeholder={
-                settings?.hasTheirstackKey
-                  ? "Enter new key to replace, or leave blank to keep current"
-                  : "Paste your TheirStack API key"
-              }
-              value={theirstackKey}
-              onChange={(e) => setTheirstackKey(e.target.value)}
-              disabled={busy}
-            />
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Powers the Postings page (live job search). Get a free key at{" "}
-              <a
-                href="https://theirstack.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[var(--accent)] underline"
-              >
-                theirstack.com
-              </a>{" "}
-              — 200 job credits/month free, 1 credit per fetched posting.
-            </p>
           </div>
 
           <div>
