@@ -26,10 +26,13 @@ export type FitResult = {
   model: string;
 };
 
+export type PostingStatus = "new" | "kit_generated" | "applied" | "dismissed";
+
 export type StoredPosting = {
   posting: JobPosting;
   fit: FitResult | null;
   addedAt: string;
+  status: PostingStatus;
 };
 
 export type RefreshStats = {
@@ -67,6 +70,15 @@ function emptyFile(): PostingsFile {
   };
 }
 
+const VALID_STATUSES: PostingStatus[] = ["new", "kit_generated", "applied", "dismissed"];
+
+function normalizeStatus(raw: unknown): PostingStatus {
+  if (typeof raw === "string" && VALID_STATUSES.includes(raw as PostingStatus)) {
+    return raw as PostingStatus;
+  }
+  return "new";
+}
+
 export function loadPostingsFile(): PostingsFile {
   const p = postingsPath();
   if (!existsSync(p)) return emptyFile();
@@ -80,10 +92,12 @@ export function loadPostingsFile(): PostingsFile {
       lastRefreshAt: typeof raw.lastRefreshAt === "string" ? raw.lastRefreshAt : null,
       lastRefreshStats: raw.lastRefreshStats ?? null,
       postings: Array.isArray(raw.postings)
-        ? raw.postings.filter(
-            (sp): sp is StoredPosting =>
-              Boolean(sp && typeof sp === "object" && (sp as StoredPosting).posting?.id)
-          )
+        ? raw.postings
+            .filter(
+              (sp): sp is StoredPosting =>
+                Boolean(sp && typeof sp === "object" && (sp as StoredPosting).posting?.id)
+            )
+            .map((sp) => ({ ...sp, status: normalizeStatus(sp.status) }))
         : [],
     };
   } catch {
@@ -120,7 +134,7 @@ export function upsertPostings(incoming: JobPosting[]): {
   for (const posting of incoming) {
     if (known.has(posting.id)) continue;
     known.add(posting.id);
-    added.push({ posting, fit: null, addedAt: now });
+    added.push({ posting, fit: null, addedAt: now, status: "new" });
   }
   file.postings = [...added, ...file.postings];
   if (file.postings.length > MAX_STORED) {
@@ -130,6 +144,20 @@ export function upsertPostings(incoming: JobPosting[]): {
   }
   savePostingsFile(file);
   return { added, total: file.postings.length };
+}
+
+/**
+ * Update the status of a single posting. Returns false if the id was not found.
+ * Only transitions that make sense are gated here — kit_generated is set
+ * automatically by the generate route; all others are user-driven.
+ */
+export function setPostingStatus(id: string, status: PostingStatus): boolean {
+  const file = loadPostingsFile();
+  const sp = file.postings.find((p) => p.posting.id === id);
+  if (!sp) return false;
+  sp.status = status;
+  savePostingsFile(file);
+  return true;
 }
 
 export function getStoredPosting(id: string): StoredPosting | null {

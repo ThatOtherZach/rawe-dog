@@ -27,6 +27,8 @@ type RefreshStats = {
   scoreFailures: number;
 };
 
+type PostingStatus = "new" | "kit_generated" | "applied" | "dismissed";
+
 type PostingSummary = {
   id: string;
   title: string;
@@ -39,11 +41,19 @@ type PostingSummary = {
   url: string;
   datePosted: string;
   addedAt: string;
+  status: PostingStatus;
   score: number | null;
   rationale: string;
   matchedExperienceIds: string[];
   hasBrief: boolean;
   scoredAt: string | null;
+};
+
+type StatusCounts = {
+  newCount: number;
+  kitGeneratedCount: number;
+  appliedCount: number;
+  dismissedCount: number;
 };
 
 type PostingsState = {
@@ -53,6 +63,7 @@ type PostingsState = {
   filtersSource: "derived" | "manual" | null;
   lastRefreshAt: string | null;
   lastRefreshStats: RefreshStats | null;
+  statusCounts: StatusCounts;
   postings: PostingSummary[];
 };
 
@@ -183,6 +194,9 @@ export default function PostingsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, PostingDetail>>({});
   const [detailLoading, setDetailLoading] = useState(false);
+
+  const [showDismissed, setShowDismissed] = useState(false);
+  const [patchingId, setPatchingId] = useState<string | null>(null);
 
   const fillForm = useCallback((f: Filters) => {
     setTitlesText(f.titleQueries.join(", "));
@@ -356,11 +370,35 @@ export default function PostingsPage() {
     }
   }
 
+  async function patchStatus(id: string, status: PostingStatus) {
+    setPatchingId(id);
+    try {
+      const res = await fetch(`/api/postings/${encodeURIComponent(id)}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error((data as { error?: string }).error || "Status update failed");
+      }
+      applyState(data as PostingsState);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPatchingId(null);
+    }
+  }
+
   const busy = deriving || saving || refreshing;
   const filters = state?.filters ?? null;
-  const postings = state?.postings ?? [];
+  const allPostings = state?.postings ?? [];
+  const visiblePostings = showDismissed
+    ? allPostings
+    : allPostings.filter((p) => p.status !== "dismissed");
   const showEditor = editing || (state !== null && !filters);
-  const scoredCount = postings.filter((p) => p.score !== null).length;
+  const scoredCount = allPostings.filter((p) => p.score !== null).length;
+  const counts = state?.statusCounts;
 
   return (
     <div className="space-y-6">
@@ -687,18 +725,38 @@ export default function PostingsPage() {
       <section className="panel p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h2 className="mr-auto text-lg font-semibold">
-            Ranked postings{postings.length ? ` (${postings.length})` : ""}
+            Ranked postings{allPostings.length ? ` (${allPostings.length})` : ""}
           </h2>
-          {postings.length > 0 && (
+          {counts && (counts.appliedCount > 0 || counts.kitGeneratedCount > 0 || counts.dismissedCount > 0) && (
+            <span className="text-xs text-[var(--muted)]">
+              {[
+                counts.appliedCount > 0 && `${counts.appliedCount} applied`,
+                counts.kitGeneratedCount > 0 && `${counts.kitGeneratedCount} kit generated`,
+                counts.newCount > 0 && `${counts.newCount} new`,
+                counts.dismissedCount > 0 && `${counts.dismissedCount} dismissed`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          )}
+          {allPostings.length > 0 && (
             <span className="text-xs text-[var(--muted)]">
               {scoredCount} scored · sorted by fit
             </span>
+          )}
+          {counts && counts.dismissedCount > 0 && (
+            <button
+              className="btn !px-2.5 !py-1 text-xs"
+              onClick={() => setShowDismissed((v) => !v)}
+            >
+              {showDismissed ? "Hide dismissed" : `Show dismissed (${counts.dismissedCount})`}
+            </button>
           )}
         </div>
 
         {!state ? (
           <p className="animate-pulse text-sm text-[var(--muted)]">Loading…</p>
-        ) : postings.length === 0 ? (
+        ) : visiblePostings.length === 0 ? (
           <div className="flex min-h-[10rem] items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[#0c0e13] p-6 text-center">
             <div className="max-w-md text-sm text-[var(--muted)]">
               {!state.providerConfigured ? (
@@ -717,6 +775,17 @@ export default function PostingsPage() {
                   </strong>{" "}
                   (or edit them manually), save, then refresh.
                 </p>
+              ) : allPostings.length > 0 ? (
+                <p>
+                  All postings are dismissed.{" "}
+                  <button
+                    className="text-[var(--accent)] underline"
+                    onClick={() => setShowDismissed(true)}
+                  >
+                    Show them
+                  </button>{" "}
+                  or refresh to fetch new ones.
+                </p>
               ) : (
                 <p>
                   No postings cached yet. Click{" "}
@@ -728,9 +797,13 @@ export default function PostingsPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {postings.map((p) => {
+            {visiblePostings.map((p) => {
               const expanded = expandedId === p.id;
               const d = details[p.id];
+              const isPatching = patchingId === p.id;
+              const isDismissed = p.status === "dismissed";
+              const isApplied = p.status === "applied";
+              const isKitGenerated = p.status === "kit_generated";
               const meta = [
                 p.location,
                 workModeLabel(p),
@@ -743,7 +816,11 @@ export default function PostingsPage() {
               return (
                 <div
                   key={p.id}
-                  className="rounded-xl border border-[var(--border)] bg-[#0c0e13] p-4"
+                  className={`rounded-xl border bg-[#0c0e13] p-4 ${
+                    isDismissed
+                      ? "border-[var(--border)] opacity-50"
+                      : "border-[var(--border)]"
+                  }`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <ScoreChip score={p.score} />
@@ -757,6 +834,21 @@ export default function PostingsPage() {
                     <span className="text-sm text-[var(--muted)]">
                       {p.company}
                     </span>
+                    {isApplied && (
+                      <span className="rounded-full border border-[color-mix(in_srgb,var(--accent)_55%,var(--border))] px-2 py-0.5 text-xs text-[var(--accent)]">
+                        ✓ applied
+                      </span>
+                    )}
+                    {isKitGenerated && !isApplied && (
+                      <span className="rounded-full border border-[#7a5c2e] px-2 py-0.5 text-xs text-[#ffd28f]">
+                        kit generated
+                      </span>
+                    )}
+                    {isDismissed && (
+                      <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                        dismissed
+                      </span>
+                    )}
                     <div className="ml-auto flex flex-wrap items-center gap-2">
                       {p.url && (
                         <a
@@ -768,12 +860,53 @@ export default function PostingsPage() {
                           original ↗
                         </a>
                       )}
-                      <Link
-                        href={`/?posting=${encodeURIComponent(p.id)}`}
-                        className="btn btn-primary !px-3 !py-1.5 text-xs"
-                      >
-                        Generate kit
-                      </Link>
+                      {!isApplied && (
+                        <button
+                          className="btn !px-2.5 !py-1 text-xs"
+                          disabled={isPatching}
+                          onClick={() => void patchStatus(p.id, "applied")}
+                          title="Mark as applied"
+                        >
+                          {isPatching ? "…" : "Mark applied"}
+                        </button>
+                      )}
+                      {isApplied && (
+                        <button
+                          className="btn !px-2.5 !py-1 text-xs"
+                          disabled={isPatching}
+                          onClick={() => void patchStatus(p.id, "new")}
+                          title="Undo applied"
+                        >
+                          {isPatching ? "…" : "Undo applied"}
+                        </button>
+                      )}
+                      {!isDismissed ? (
+                        <button
+                          className="btn !px-2.5 !py-1 text-xs text-[var(--muted)]"
+                          disabled={isPatching}
+                          onClick={() => void patchStatus(p.id, "dismissed")}
+                          title="Hide this posting"
+                        >
+                          {isPatching ? "…" : "Dismiss"}
+                        </button>
+                      ) : (
+                        <button
+                          className="btn !px-2.5 !py-1 text-xs"
+                          disabled={isPatching}
+                          onClick={() => void patchStatus(p.id, "new")}
+                          title="Restore to active list"
+                        >
+                          {isPatching ? "…" : "Restore"}
+                        </button>
+                      )}
+                      {!isDismissed && (
+                        <Link
+                          href={`/?posting=${encodeURIComponent(p.id)}`}
+                          className="btn btn-primary !px-3 !py-1.5 text-xs"
+                        >
+                          Generate kit
+                        </Link>
+                      )}
                     </div>
                   </div>
                   {meta && (

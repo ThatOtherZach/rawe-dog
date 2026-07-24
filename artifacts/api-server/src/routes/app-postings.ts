@@ -5,9 +5,11 @@ import {
   saveFilters,
   upsertPostings,
   getStoredPosting,
+  setPostingStatus,
   recordRefresh,
   type PostingsFile,
   type StoredPosting,
+  type PostingStatus,
 } from "../lib/jobs/store.js";
 import {
   JobProviderError,
@@ -21,7 +23,7 @@ import { deriveFiltersFromProfile, scorePostings } from "../lib/jobs/match.js";
 const router = Router();
 
 function summarize(sp: StoredPosting) {
-  const { posting, fit, addedAt } = sp;
+  const { posting, fit, addedAt, status } = sp;
   return {
     id: posting.id,
     title: posting.title,
@@ -34,6 +36,7 @@ function summarize(sp: StoredPosting) {
     url: posting.url,
     datePosted: posting.datePosted,
     addedAt,
+    status: status ?? "new",
     score: fit ? fit.score : null,
     rationale: fit?.rationale ?? "",
     matchedExperienceIds: fit?.matchedExperienceIds ?? [],
@@ -52,6 +55,21 @@ function rankPostings(a: StoredPosting, b: StoredPosting): number {
   );
 }
 
+function statusCounts(postings: StoredPosting[]) {
+  let newCount = 0;
+  let kitGeneratedCount = 0;
+  let appliedCount = 0;
+  let dismissedCount = 0;
+  for (const sp of postings) {
+    const s = sp.status ?? "new";
+    if (s === "new") newCount++;
+    else if (s === "kit_generated") kitGeneratedCount++;
+    else if (s === "applied") appliedCount++;
+    else if (s === "dismissed") dismissedCount++;
+  }
+  return { newCount, kitGeneratedCount, appliedCount, dismissedCount };
+}
+
 function statePayload(file: PostingsFile) {
   const s = loadSettings();
   return {
@@ -61,6 +79,7 @@ function statePayload(file: PostingsFile) {
     filtersSource: file.filtersSource,
     lastRefreshAt: file.lastRefreshAt,
     lastRefreshStats: file.lastRefreshStats,
+    statusCounts: statusCounts(file.postings),
     postings: [...file.postings].sort(rankPostings).map(summarize),
   };
 }
@@ -176,6 +195,27 @@ router.post("/postings/refresh", async (_req: Request, res: Response) => {
   } finally {
     refreshInFlight = false;
   }
+});
+
+const VALID_STATUS_VALUES: PostingStatus[] = ["new", "kit_generated", "applied", "dismissed"];
+
+router.patch("/postings/:id/status", (req: Request, res: Response) => {
+  const id = String(req.params["id"] || "");
+  const body = (req.body || {}) as { status?: string };
+  const status = body.status as PostingStatus | undefined;
+  if (!status || !VALID_STATUS_VALUES.includes(status)) {
+    res.status(400).json({
+      ok: false,
+      error: `status must be one of: ${VALID_STATUS_VALUES.join(", ")}`,
+    });
+    return;
+  }
+  const found = setPostingStatus(id, status);
+  if (!found) {
+    res.status(404).json({ ok: false, error: "Posting not found." });
+    return;
+  }
+  res.json({ ok: true, ...statePayload(loadPostingsFile()) });
 });
 
 router.get("/postings/:id", (req: Request, res: Response) => {

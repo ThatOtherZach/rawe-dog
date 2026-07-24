@@ -7,7 +7,7 @@ import {
   type GenerateProgressEvent,
 } from "../lib/generate.js";
 import type { Pass1Selection } from "../lib/parse-kit.js";
-import { getStoredPosting } from "../lib/jobs/store.js";
+import { getStoredPosting, setPostingStatus } from "../lib/jobs/store.js";
 import {
   briefIsUsable,
   renderBriefCompact,
@@ -106,6 +106,10 @@ router.post("/generate", async (req: Request, res: Response) => {
         } else {
           await generateApplicationKit(input, send);
         }
+        // Mark the posting as kit_generated on successful stream completion.
+        if (body.postingId) {
+          setPostingStatus(String(body.postingId), "kit_generated");
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         send({ type: "error", error: message });
@@ -128,12 +132,18 @@ router.post("/generate", async (req: Request, res: Response) => {
         return;
       }
       const result = await runKitFromSelection(input, body.selection);
+      if (body.postingId) {
+        setPostingStatus(String(body.postingId), "kit_generated");
+      }
       res.json({ ok: true, ...result });
       return;
     }
 
     // full one-shot (JSON)
     const result = await generateApplicationKit(input);
+    if (body.postingId) {
+      setPostingStatus(String(body.postingId), "kit_generated");
+    }
     res.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
