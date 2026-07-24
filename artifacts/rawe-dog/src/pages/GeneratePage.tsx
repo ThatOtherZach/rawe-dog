@@ -820,7 +820,7 @@ export default function GeneratePage() {
               disabled={busy || !ready || (!jobPosting.trim() && !linkedPosting)}
               onClick={() => void runPass1()}
             >
-              {stage === "pass1" ? "Selecting…" : "1. Select experiences"}
+              {stage === "pass1" ? "Selecting…" : "Select Experiences"}
             </button>
             {linkedPosting && linkedPosting.matchedExperienceIds.length > 0 && (
               <button
