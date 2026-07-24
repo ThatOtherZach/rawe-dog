@@ -3,14 +3,28 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: |
+    RAWE Dog API — generates tailored job-application kits from a user's knowledge
+    library and job postings, with live job discovery via TheirStack.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: generate
+    description: Kit generation pipeline
+  - name: library
+    description: Knowledge library management
+  - name: settings
+    description: Application settings
+  - name: postings
+    description: Live job postings and fit scoring
+  - name: export
+    description: Document export (PDF, DOCX, MD, ZIP)
+
 paths:
+  # ── Health ────────────────────────────────────────────────────────────────
   /healthz:
     get:
       operationId: healthCheck
@@ -24,13 +38,1093 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Settings ──────────────────────────────────────────────────────────────
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get public settings
+      description: Returns current settings with API keys masked.
+      responses:
+        "200":
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicSettings"
+
+    put:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update settings
+      description: >
+        Update xAI key, TheirStack key, and/or model overrides. Pass
+        `clearApiKey: true` to remove the xAI key; `clearTheirstackKey: true`
+        to remove the TheirStack key. Empty string for a stage model resets it
+        to the primary drafting model.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsBody"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicSettings"
+
+    post:
+      operationId: settingsAction
+      tags: [settings]
+      summary: Settings actions (test connection, reset env)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [test, reset-env]
+              required: [action]
+      responses:
+        "200":
+          description: Action result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          description: Connection test failed or unknown action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Library ───────────────────────────────────────────────────────────────
+  /library:
+    get:
+      operationId: getLibrary
+      tags: [library]
+      summary: List library files
+      description: >
+        Returns all uploaded knowledge files grouped by slot, along with
+        readiness status and slot metadata.
+      responses:
+        "200":
+          description: Library state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryState"
+
+    post:
+      operationId: uploadLibraryFile
+      tags: [library]
+      summary: Upload a knowledge file
+      description: >
+        Upload a file (Markdown, PDF, or plain text) to a library slot.
+        The `experience` slot accepts multiple files; all other slots hold one.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                slot:
+                  type: string
+                  enum:
+                    - master-profile
+                    - system-instructions
+                    - experience
+                    - resume-template
+                    - cover-template
+                file:
+                  type: string
+                  format: binary
+              required: [slot, file]
+      responses:
+        "200":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryUploadResult"
+        "400":
+          description: Invalid slot or missing file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteLibraryFile
+      tags: [library]
+      summary: Delete a library file
+      parameters:
+        - name: slot
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Missing slot or id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /library/file:
+    get:
+      operationId: downloadLibraryFile
+      tags: [library]
+      summary: Download a library file
+      parameters:
+        - name: slot
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File contents
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            text/markdown:
+              schema:
+                type: string
+            text/plain:
+              schema:
+                type: string
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Missing slot or id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Generate ──────────────────────────────────────────────────────────────
+  /generate:
+    post:
+      operationId: generate
+      tags: [generate]
+      summary: Generate an application kit
+      description: |
+        Runs the kit generation pipeline. Four modes:
+
+        - **stream** — Server-Sent Events; returns `text/event-stream`. Events:
+          `status`, `pass1`, `draft`, `qa`, `repair`, `done`, `error`, `close`.
+        - **pass1** — Selection only (JSON). Returns experience selection for
+          user review before committing to drafting.
+        - **pass2** — Drafting from an existing selection (JSON). Requires
+          `selection` field.
+        - **full** — One-shot full pipeline (JSON). Default if `mode` is omitted.
+
+        When `postingId` is supplied the server resolves the posting's canonical
+        brief from the cache (token-efficient) instead of re-sending the raw
+        description. On successful kit generation the posting's status is
+        automatically set to `kit_generated`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateRequest"
+      responses:
+        "200":
+          description: Kit result (JSON modes) or SSE stream (mode=stream)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateResult"
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events stream of GenerateProgressEvent objects
+        "400":
+          description: Missing required input or library not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: postingId not found in cache
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Postings ──────────────────────────────────────────────────────────────
+  /postings:
+    get:
+      operationId: getPostings
+      tags: [postings]
+      summary: Get the ranked postings list
+      description: >
+        Returns all cached postings ranked by fit score (scored desc, then
+        unscored newest-first), along with search filters, refresh metadata,
+        and per-status counts.
+      responses:
+        "200":
+          description: Postings state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostingsState"
+
+  /postings/refresh:
+    post:
+      operationId: refreshPostings
+      tags: [postings]
+      summary: Fetch and score new jobs from TheirStack
+      description: >
+        Calls TheirStack with the current filters, dedupes against existing
+        postings, scores new ones against the Master Profile, and returns the
+        updated state. Returns 409 if a refresh is already in flight (concurrent
+        refreshes are rejected, not queued, to avoid burning API credits).
+      responses:
+        "200":
+          description: Updated postings state after refresh
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostingsState"
+        "400":
+          description: TheirStack key missing, filters missing, or bad filters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "402":
+          description: TheirStack API credit limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Another refresh is already in flight
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Provider network error or scoring failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /postings/derive-filters:
+    post:
+      operationId: derivePostingFilters
+      tags: [postings]
+      summary: Derive search filters from the Master Profile via LLM
+      description: >
+        Uses the xAI model to extract job-search filters (titles, seniority,
+        countries, etc.) from the user's Master Profile. Saves the derived
+        filters and returns the full postings state.
+      responses:
+        "200":
+          description: Postings state with newly derived filters
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PostingsState"
+                  - type: object
+                    properties:
+                      rationale:
+                        type: string
+                        description: LLM explanation of why these filters were chosen
+        "400":
+          description: xAI key missing or Master Profile not in library
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /postings/filters:
+    put:
+      operationId: updatePostingFilters
+      tags: [postings]
+      summary: Save manually-edited search filters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filters:
+                  $ref: "#/components/schemas/SearchFilters"
+              required: [filters]
+      responses:
+        "200":
+          description: Updated postings state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostingsState"
+        "400":
+          description: filters object missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /postings/{id}:
+    get:
+      operationId: getPosting
+      tags: [postings]
+      summary: Get full posting detail
+      description: >
+        Returns the full stored posting including the canonical brief, fit
+        result, and raw description. Use for the expanded row detail view.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full posting detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostingDetail"
+        "404":
+          description: Posting not found (may have been pruned; trigger a refresh)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /postings/{id}/status:
+    patch:
+      operationId: updatePostingStatus
+      tags: [postings]
+      summary: Update posting status
+      description: >
+        Set the status of a posting to `new`, `kit_generated`, `applied`, or
+        `dismissed`. Returns the full updated postings state so the UI can
+        re-render counts and filters in one round-trip.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  $ref: "#/components/schemas/PostingStatus"
+              required: [status]
+      responses:
+        "200":
+          description: Updated postings state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostingsState"
+        "400":
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Posting not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Export ────────────────────────────────────────────────────────────────
+  /export:
+    post:
+      operationId: exportDocument
+      tags: [export]
+      summary: Export a document or full kit
+      description: |
+        Converts Markdown to PDF, DOCX, or raw MD, or bundles a full
+        ApplicationKit into a ZIP archive.
+
+        - **pdf** — returns `application/pdf`
+        - **docx** — returns `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+        - **md** — returns `text/markdown`
+        - **zip** — requires `kit` field; returns `application/zip` with all four documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportRequest"
+      responses:
+        "200":
+          description: Exported file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+            text/markdown:
+              schema:
+                type: string
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Missing required fields or invalid format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /export/smoke:
+    get:
+      operationId: exportSmoke
+      tags: [export]
+      summary: Export pipeline smoke test
+      description: >
+        Runs a small sample document through each export format (MD, PDF, DOCX,
+        ZIP) and checks the output bytes and magic bytes. Use in dev to verify
+        the Puppeteer and docx pipelines are healthy.
+      responses:
+        "200":
+          description: All checks passed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportSmokeResult"
+        "500":
+          description: One or more checks failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportSmokeResult"
+
+# ── Shared schemas ───────────────────────────────────────────────────────────
 components:
   schemas:
+
+    # ── Primitives & utility ─────────────────────────────────────────────────
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required: [ok]
+
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        error:
+          type: string
+      required: [error]
+
+    ActionResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        message:
+          type: string
+        error:
+          type: string
+
+    # ── Settings ─────────────────────────────────────────────────────────────
+    PublicSettings:
+      type: object
+      description: Settings with API keys masked for safe client display.
+      properties:
+        hasApiKey:
+          type: boolean
+        apiKeyMasked:
+          type: string
+        hasTheirstackKey:
+          type: boolean
+        theirstackKeyMasked:
+          type: string
+        model:
+          type: string
+          description: Primary drafting model identifier
+        selectionModel:
+          type: string
+          description: Model for Pass 1 selection (empty string = use drafting model)
+        verificationModel:
+          type: string
+          description: Model for verification pass (empty string = use drafting model)
+      required: [hasApiKey, apiKeyMasked, hasTheirstackKey, theirstackKeyMasked, model]
+
+    UpdateSettingsBody:
+      type: object
+      properties:
+        apiKey:
+          type: string
+          description: xAI API key (omit to leave unchanged)
+        clearApiKey:
+          type: boolean
+          description: Set true to clear the stored xAI key
+        theirstackApiKey:
+          type: string
+          description: TheirStack API key (omit to leave unchanged)
+        clearTheirstackKey:
+          type: boolean
+          description: Set true to clear the stored TheirStack key
+        model:
+          type: string
+          description: Primary drafting model
+        selectionModel:
+          type: string
+          description: Selection-stage model (empty string resets to drafting model)
+        verificationModel:
+          type: string
+          description: Verification-stage model (empty string resets to drafting model)
+
+    # ── Library ───────────────────────────────────────────────────────────────
+    LibrarySlotMeta:
+      type: object
+      properties:
+        slot:
+          type: string
+        label:
+          type: string
+        multi:
+          type: boolean
+          description: Whether this slot accepts multiple files (only `experience` does)
+        required:
+          type: boolean
+      required: [slot, label, multi, required]
+
+    LibraryFile:
+      type: object
+      properties:
+        id:
+          type: string
+        slot:
+          type: string
+        originalName:
+          type: string
+        kind:
+          type: string
+          enum: [md, pdf, txt]
+        catalogId:
+          type: string
+          description: Stable catalog alias used in prompts (e.g. "E1", "E2")
+        uploadedAt:
+          type: string
+          format: date-time
+        sizeBytes:
+          type: number
+      required: [id, slot, originalName, kind, uploadedAt, sizeBytes]
+
+    LibraryReadiness:
+      type: object
+      description: Whether the library has the minimum required files to generate a kit.
+      properties:
+        ready:
+          type: boolean
+        missing:
+          type: array
+          items:
+            type: string
+          description: Names of required slots that are empty
+      required: [ready, missing]
+
+    LibraryState:
+      type: object
+      properties:
+        readiness:
+          $ref: "#/components/schemas/LibraryReadiness"
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/LibraryFile"
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/LibrarySlotMeta"
+      required: [readiness, files, slots]
+
+    LibraryUploadResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        file:
+          $ref: "#/components/schemas/LibraryFile"
+        readiness:
+          $ref: "#/components/schemas/LibraryReadiness"
+      required: [ok, file, readiness]
+
+    # ── Generation ────────────────────────────────────────────────────────────
+    GenerateRequest:
+      type: object
+      properties:
+        jobPosting:
+          type: string
+          description: >
+            Raw job posting text. May be omitted when `postingId` is supplied
+            and the posting has a usable canonical brief.
+        postingId:
+          type: string
+          description: >
+            ID of a stored posting. The server resolves the canonical brief from
+            the cache so the raw description is never re-sent to the LLM.
+        company:
+          type: string
+        targetTitle:
+          type: string
+        notes:
+          type: string
+          description: Extra user context appended to the generation prompt
+        overrideLeads:
+          type: array
+          items:
+            type: string
+          description: Catalog IDs (E1…) to force-select, bypassing Pass 1
+        skipPass1:
+          type: boolean
+        mode:
+          type: string
+          enum: [full, pass1, pass2, stream]
+          default: full
+        selection:
+          $ref: "#/components/schemas/Pass1Selection"
+
+    Pass1Selection:
+      type: object
+      description: Experience selection produced by Pass 1 (mode=pass1).
+      properties:
+        leadExperienceIds:
+          type: array
+          items:
+            type: string
+          description: Catalog IDs of selected lead experiences
+        rationale:
+          type: string
+        targetTitle:
+          type: string
+        company:
+          type: string
+      required: [leadExperienceIds]
+
+    ApplicationKit:
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            targetTitle:
+              type: string
+            company:
+              type: string
+            leadExperiences:
+              type: array
+              items:
+                type: string
+            rationale:
+              type: string
+            sourcesUsed:
+              type: array
+              items:
+                type: string
+          required: [targetTitle, company, leadExperiences, rationale, sourcesUsed]
+        resumeMarkdown:
+          type: string
+        coverLetterMarkdown:
+          type: string
+        alignmentNotesMarkdown:
+          type: string
+        starPrepMarkdown:
+          type: string
+      required:
+        [meta, resumeMarkdown, coverLetterMarkdown, alignmentNotesMarkdown, starPrepMarkdown]
+
+    GenerateResult:
+      type: object
+      description: >
+        JSON response for mode=full, mode=pass1, and mode=pass2.
+        For mode=stream the response is a text/event-stream — this schema does
+        not apply.
+      properties:
+        ok:
+          type: boolean
+        kit:
+          $ref: "#/components/schemas/ApplicationKit"
+        selection:
+          $ref: "#/components/schemas/Pass1Selection"
+        qaReport:
+          type: object
+          description: Verification findings (present when verification ran)
+          properties:
+            findings:
+              type: array
+              items:
+                type: string
+            keywordCoverage:
+              type: array
+              items:
+                type: string
+            repaired:
+              type: array
+              items:
+                type: string
+      required: [ok]
+
+    # ── Postings ──────────────────────────────────────────────────────────────
+    PostingStatus:
+      type: string
+      enum: [new, kit_generated, applied, dismissed]
+      description: >
+        Lifecycle status of a stored posting.
+        `kit_generated` is set automatically when a kit is generated from this posting.
+
+    SearchFilters:
+      type: object
+      description: Filters sent to TheirStack on each refresh.
+      properties:
+        titles:
+          type: array
+          items:
+            type: string
+          description: Job title keywords
+        countries:
+          type: array
+          items:
+            type: string
+        remoteOnly:
+          type: boolean
+        seniority:
+          type: array
+          items:
+            type: string
+        minSalaryUsd:
+          type: number
+          nullable: true
+        keywords:
+          type: array
+          items:
+            type: string
+          description: ATS/tech keywords to match
+        maxAgeDays:
+          type: integer
+          description: Ignore postings older than this many days
+        limit:
+          type: integer
+          description: Max results per refresh (TheirStack credits = 1 per job returned)
+
+    JobBrief:
+      type: object
+      description: >
+        Canonical brief extracted at scan time. Used as the LLM input when
+        generating a kit from a posting ID, keeping token usage low.
+      properties:
+        targetTitle:
+          type: string
+        company:
+          type: string
+        seniority:
+          type: string
+        mustHaves:
+          type: array
+          items:
+            type: string
+        niceToHaves:
+          type: array
+          items:
+            type: string
+        responsibilities:
+          type: array
+          items:
+            type: string
+        atsKeywords:
+          type: array
+          items:
+            type: string
+        compensation:
+          type: string
+      required: [targetTitle, company, seniority, mustHaves, niceToHaves, responsibilities, atsKeywords, compensation]
+
+    FitResult:
+      type: object
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Realistic-fit score vs the Master Profile
+        rationale:
+          type: string
+          description: One-line explanation of the decisive factors
+        matchedExperienceIds:
+          type: array
+          items:
+            type: string
+          description: Catalog IDs of library experiences that best match
+        brief:
+          $ref: "#/components/schemas/JobBrief"
+        scoredAt:
+          type: string
+          format: date-time
+        model:
+          type: string
+      required: [score, rationale, matchedExperienceIds, brief, scoredAt, model]
+
+    StatusCounts:
+      type: object
+      properties:
+        newCount:
+          type: integer
+        kitGeneratedCount:
+          type: integer
+        appliedCount:
+          type: integer
+        dismissedCount:
+          type: integer
+      required: [newCount, kitGeneratedCount, appliedCount, dismissedCount]
+
+    RefreshStats:
+      type: object
+      properties:
+        fetched:
+          type: integer
+          description: Total jobs returned by TheirStack
+        added:
+          type: integer
+          description: New postings added (deduped)
+        scored:
+          type: integer
+          description: Postings successfully scored
+        scoreFailures:
+          type: integer
+          description: Postings that could not be scored (LLM error or timeout)
+      required: [fetched, added, scored, scoreFailures]
+
+    PostingSummary:
+      type: object
+      description: >
+        Compact posting representation used in the list view. Does not include
+        the raw job description (use GET /postings/{id} for that).
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        company:
+          type: string
+        location:
+          type: string
+        remote:
+          type: boolean
+          nullable: true
+        hybrid:
+          type: boolean
+          nullable: true
+        seniority:
+          type: string
+        salary:
+          type: string
+        url:
+          type: string
+        datePosted:
+          type: string
+        addedAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/PostingStatus"
+        score:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+        rationale:
+          type: string
+        matchedExperienceIds:
+          type: array
+          items:
+            type: string
+        hasBrief:
+          type: boolean
+          description: Whether a usable canonical brief is stored (enables token-efficient kit generation)
+        scoredAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        [id, title, company, location, seniority, salary, url, datePosted, addedAt,
+         status, score, rationale, matchedExperienceIds, hasBrief]
+
+    PostingDetail:
+      description: Full posting detail including raw description and fit result.
+      allOf:
+        - $ref: "#/components/schemas/PostingSummary"
+        - type: object
+          properties:
+            provider:
+              type: string
+            sourceUrl:
+              type: string
+            countryCode:
+              type: string
+            employmentStatuses:
+              type: array
+              items:
+                type: string
+            minSalaryUsd:
+              type: number
+              nullable: true
+            maxSalaryUsd:
+              type: number
+              nullable: true
+            discoveredAt:
+              type: string
+              format: date-time
+            description:
+              type: string
+              description: Raw job description from the provider
+            fit:
+              oneOf:
+                - $ref: "#/components/schemas/FitResult"
+                - type: "null"
+
+    PostingsState:
+      type: object
+      description: Full postings page state returned by most postings endpoints.
+      properties:
+        providerConfigured:
+          type: boolean
+          description: Whether a TheirStack API key is set
+        xaiConfigured:
+          type: boolean
+          description: Whether an xAI API key is set
+        filters:
+          oneOf:
+            - $ref: "#/components/schemas/SearchFilters"
+            - type: "null"
+        filtersSource:
+          type: string
+          enum: [derived, manual]
+          nullable: true
+          description: How the current filters were set
+        lastRefreshAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastRefreshStats:
+          oneOf:
+            - $ref: "#/components/schemas/RefreshStats"
+            - type: "null"
+        statusCounts:
+          $ref: "#/components/schemas/StatusCounts"
+        postings:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostingSummary"
+          description: All postings, ranked by score desc then newest-first
+      required:
+        [providerConfigured, xaiConfigured, filters, filtersSource, lastRefreshAt,
+         lastRefreshStats, statusCounts, postings]
+
+    # ── Export ────────────────────────────────────────────────────────────────
+    ExportRequest:
+      type: object
+      properties:
+        format:
+          type: string
+          enum: [pdf, docx, md, zip]
+          default: md
+        markdown:
+          type: string
+          description: Source Markdown (required for pdf, docx, md formats)
+        filename:
+          type: string
+          description: Base filename without extension
+        title:
+          type: string
+          description: Document title embedded in PDF/DOCX metadata
+        kit:
+          $ref: "#/components/schemas/ApplicationKit"
+          description: Full kit object (required for zip format)
+      required: [format]
+
+    ExportSmokeResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        results:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              ok:
+                type: boolean
+              bytes:
+                type: integer
+              error:
+                type: string
+      required: [ok, results]
