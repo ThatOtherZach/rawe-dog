@@ -3,6 +3,7 @@
 /references/
 *.local.md
 .env
+.env.*
 .DS_Store
 
 # Common LLM / editor files
@@ -10,3 +11,12 @@
 *.tmp
 .idea/
 .vscode/
+
+# App (web/)
+web/node_modules/
+web/.next/
+web/out/
+web/data/
+web/.env
+web/.env.local
+web/.env*.local

@@ -23,7 +23,7 @@ The system has three layers:
 2. **Experience Files** Rich, detailed write-ups of your actual work (projects, impact, S.T.A.R. stories). These are what stop the LLM from hallucinating or being generic; locking in to applicable skills.
 3. **System Instructions** A set of rules that turn any LLM into a competent, consistent "hiring manager" who knows how to select and frame your experience.
 
-## Quick Start
+## Quick Start (framework / any LLM)
 
 1. Copy the templates:
    ```bash
@@ -42,6 +42,24 @@ The system has three layers:
 
 See the [full example](./examples/full-example) to understand what good input looks like.
 
+## Local App (xAI)
+
+A local Next.js app lives in [`web/`](./web). Paste a job posting, upload your Master Profile / experience / templates (MD or PDF), and generate a full application kit via the xAI API with **immutable guardrails** and a **two-pass, accuracy-first** context pack.
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+| Doc | Audience |
+| --- | --- |
+| [web/README.md](./web/README.md) | Runbook: Settings, Library, Generate, export, privacy |
+| [web/docs/FOR_AI_REVIEWERS.md](./web/docs/FOR_AI_REVIEWERS.md) | **AI / code review handoff** — architecture, pipeline, git safety, file index |
+| [web/AGENTS.md](./web/AGENTS.md) | Short rules for coding agents working in `web/` |
+
+Personal uploads and API keys live only under **gitignored** `web/data/` — never commit that directory.
+
 ## Who This Is For
 
 - People who want **much better** output than generic AI resume tools
@@ -58,6 +76,12 @@ rawe-dog/
 ├── README.md
 ├── LICENSE
 ├── DONATE.md
+├── web/                         # Local Next.js app (xAI generate + export)
+│   ├── app/                     # UI + API routes
+│   ├── lib/                     # Generate, library, export, xAI
+│   ├── docs/FOR_AI_REVIEWERS.md # Handoff for AI/code review
+│   ├── public/starters/         # Generic templates (no personal PII)
+│   └── data/                    # GITIGNORED: keys + personal uploads
 ├── templates/
 │   ├── master-profile.md
 │   └── experience-file.md
