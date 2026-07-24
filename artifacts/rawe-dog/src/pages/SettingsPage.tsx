@@ -32,14 +32,18 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const syncFromSettings = useCallback((data: PublicSettings) => {
+    setSettings(data);
+    setModel(MODELS.includes(data.model) ? data.model : "grok-4.5");
+    setSelectionModel(MODELS.includes(data.selectionModel) ? data.selectionModel : "");
+    setVerificationModel(MODELS.includes(data.verificationModel) ? data.verificationModel : "");
+  }, []);
+
   const refresh = useCallback(async () => {
     const res = await fetch("/api/settings");
     const data = (await res.json()) as PublicSettings;
-    setSettings(data);
-    setModel(data.model || "grok-4.5");
-    setSelectionModel(data.selectionModel || "");
-    setVerificationModel(data.verificationModel || "");
-  }, []);
+    syncFromSettings(data);
+  }, [syncFromSettings]);
 
   useEffect(() => {
     void refresh();
@@ -68,7 +72,7 @@ export default function SettingsPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error((data as { error?: string }).error || "Save failed");
-    setSettings(data as PublicSettings);
+    syncFromSettings(data as PublicSettings);
     if (keyToSend.trim()) { setApiKey(""); setShowXaiInput(false); }
     if (theirstackKey.trim()) { setTheirstackKey(""); setShowTheirstackInput(false); }
     return data as PublicSettings;
