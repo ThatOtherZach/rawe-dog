@@ -15,9 +15,17 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get("/library", (_req: Request, res: Response) => {
+  const library = listLibrary();
+  // Attach stable catalog IDs (E1, E2, …) to experience files — same sort
+  // order used by assignCatalogIds in context-pack so the UI matches the model.
+  if (Array.isArray(library["experience"])) {
+    library["experience"] = [...library["experience"]]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((f, i) => ({ ...f, catalogId: `E${i + 1}` }));
+  }
   res.json({
     readiness: libraryReadiness(),
-    files: listLibrary(),
+    files: library,
     slots: (
       [
         "master-profile",

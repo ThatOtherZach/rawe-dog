@@ -14,6 +14,7 @@ type FileMeta = {
   size: number;
   updatedAt: string;
   kind: string;
+  catalogId?: string;
 };
 
 type LibraryResponse = {
@@ -355,8 +356,15 @@ export default function LibraryPage() {
                         className="flex flex-wrap items-center gap-3 px-3 py-2.5"
                       >
                         <div className="mr-auto min-w-0">
-                          <div className="truncate font-mono text-sm">
-                            {f.originalName}
+                          <div className="flex items-center gap-2">
+                            {f.catalogId && (
+                              <span className="shrink-0 rounded border border-[var(--border)] px-1.5 py-0.5 font-mono text-xs text-[var(--accent)]">
+                                {f.catalogId}
+                              </span>
+                            )}
+                            <div className="truncate font-mono text-sm">
+                              {f.originalName}
+                            </div>
                           </div>
                           <div className="text-xs text-[var(--muted)]">
                             {f.kind.toUpperCase()} · {formatSize(f.size)} ·{" "}
