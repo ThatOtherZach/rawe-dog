@@ -4,6 +4,7 @@ import GeneratePage from "./pages/GeneratePage";
 import LibraryPage from "./pages/LibraryPage";
 import PostingsPage from "./pages/PostingsPage";
 import SettingsPage from "./pages/SettingsPage";
+import AboutPage from "./pages/AboutPage";
 
 function NotFound() {
   return (
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/postings" component={PostingsPage} />
       <Route path="/library" component={LibraryPage} />
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/about" component={AboutPage} />
       <Route component={NotFound} />
     </Switch>
   );
