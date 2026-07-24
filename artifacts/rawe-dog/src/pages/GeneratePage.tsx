@@ -1008,12 +1008,59 @@ export default function GeneratePage() {
           </div>
 
           {!activeMarkdown ? (
-            <div className="flex min-h-[12rem] items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[#0c0e13] p-4">
-              <p className="animate-pulse text-sm text-[var(--muted)]">
-                {docStatus[activeDoc] === "pending"
-                  ? `Drafting ${DOC_LABELS[activeDoc].toLowerCase()}…`
-                  : "Waiting…"}
-              </p>
+            <div className="flex min-h-[12rem] items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[#0c0e13] p-6">
+              <div className="w-full max-w-xs space-y-4">
+                {/* Step pills */}
+                <div className="flex items-center justify-center gap-1">
+                  {(
+                    [
+                      { key: "pass1", label: "Select" },
+                      { key: "drafting", label: "Draft" },
+                      { key: "verifying", label: "Verify" },
+                      { key: "done", label: "Done" },
+                    ] as { key: Stage; label: string }[]
+                  ).map(({ key, label }, i) => {
+                    const order: Partial<Record<Stage, number>> = {
+                      pass1: 0, review: 0,
+                      drafting: 1,
+                      verifying: 2, repairing: 2,
+                      done: 3,
+                    };
+                    const cur = order[stage] ?? -1;
+                    const step = i;
+                    const active = cur === step;
+                    const past = cur > step;
+                    return (
+                      <span
+                        key={key}
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                          active
+                            ? "bg-[var(--accent)] text-black"
+                            : past
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--border)]"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    );
+                  })}
+                </div>
+                {/* Live status message */}
+                <p className="text-center text-sm text-[var(--muted)]">
+                  {statusMsg ||
+                    (docStatus[activeDoc] === "pending"
+                      ? `Waiting to draft ${DOC_LABELS[activeDoc].toLowerCase()}…`
+                      : "Working…")}
+                </p>
+                {/* Mini progress bar */}
+                <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--border)]">
+                  <div
+                    className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300 ease-out"
+                    style={{ width: `${Math.min(100, Math.max(0, displayPct))}%` }}
+                  />
+                </div>
+              </div>
             </div>
           ) : isMarkdownTab ? (
             <div className="rounded-xl border border-[var(--border)] bg-[#0c0e13] p-4">
