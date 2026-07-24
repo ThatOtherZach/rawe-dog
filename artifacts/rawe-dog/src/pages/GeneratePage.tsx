@@ -829,7 +829,7 @@ export default function GeneratePage() {
                 onClick={() => void runPass1({ useFitPicks: true })}
                 title="Skip selection — reuse the experiences matched during fit scoring (no extra LLM call)"
               >
-                1b. Use fit picks ({linkedPosting.matchedExperienceIds.join(", ")})
+                Use Best Fit Picks ({linkedPosting.matchedExperienceIds.join(", ")})
               </button>
             )}
             <button
