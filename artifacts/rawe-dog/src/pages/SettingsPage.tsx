@@ -166,6 +166,18 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <section className="panel p-5">
+        <h2 className="mb-2 text-base font-semibold">About</h2>
+        <p className="text-sm text-[var(--muted)]">
+          RAWE Dog generates tailored application kits (resume, cover letter,
+          alignment notes, STAR prep) from a job posting and your personal
+          knowledge library, grounded entirely in your own experience files.
+          Every run drafts documents in parallel, then verifies grounding and
+          consistency before delivery. No fabrication — core guardrails are
+          immutable.
+        </p>
+      </section>
+
+      <section className="panel p-5">
         <div className="mb-4 flex items-center gap-2">
           <h1 className="mr-auto text-xl font-semibold">Settings</h1>
           <span className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}>
@@ -352,17 +364,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="panel p-5">
-        <h2 className="mb-2 text-base font-semibold">About</h2>
-        <p className="text-sm text-[var(--muted)]">
-          RAWE Dog generates tailored application kits (resume, cover letter,
-          alignment notes, STAR prep) from a job posting and your personal
-          knowledge library, grounded entirely in your own experience files.
-          Every run drafts documents in parallel, then verifies grounding and
-          consistency before delivery. No fabrication — core guardrails are
-          immutable.
-        </p>
-      </section>
     </div>
   );
 }
