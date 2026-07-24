@@ -189,6 +189,11 @@ export default function GeneratePage() {
   const [copied, setCopied] = useState(false);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const draftsDone = useRef(0);
+  /** True once a terminal SSE event (done/error) arrived for the current stream. */
+  const terminalSeen = useRef(false);
+  /** Which streaming run last started, for one-click retry after a dead run. */
+  const lastRunRef = useRef<"full" | "pass2" | null>(null);
+  const [stallNote, setStallNote] = useState<string | null>(null);
 
   const clearProgressTimer = () => {
     if (progressTimer.current) {
@@ -359,6 +364,7 @@ export default function GeneratePage() {
         break;
       }
       case "done": {
+        terminalSeen.current = true;
         clearProgressTimer();
         setKit(ev.kit);
         setSelection(ev.selection);
@@ -383,6 +389,7 @@ export default function GeneratePage() {
         break;
       }
       case "error": {
+        terminalSeen.current = true;
         clearProgressTimer();
         setStage("error");
         setError(ev.error);
@@ -407,27 +414,63 @@ export default function GeneratePage() {
         (data as { error?: string }).error || `Request failed (${res.status})`
       );
     }
+    terminalSeen.current = false;
+    // Stall watchdog: the server heartbeats every ~15s, so >75s of silence
+    // means the connection (not the model) has likely died.
+    let lastChunkAt = Date.now();
+    let stallNoteShown = false;
+    const stallTimer = setInterval(() => {
+      if (Date.now() - lastChunkAt > 75_000) {
+        stallNoteShown = true;
+        setStallNote(
+          "No updates from the server for over a minute — the connection may have stalled. If nothing changes soon, the run likely died."
+        );
+      }
+    }, 15_000);
+
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buf.indexOf("\n\n")) !== -1) {
-        const frame = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        const line = frame
-          .split("\n")
-          .find((l) => l.startsWith("data: "));
-        if (!line) continue;
-        try {
-          handleEvent(JSON.parse(line.slice(6)) as SseEvent);
-        } catch {
-          /* skip malformed frame */
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        lastChunkAt = Date.now();
+        if (stallNoteShown) {
+          stallNoteShown = false;
+          setStallNote(null);
+        }
+        buf += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buf.indexOf("\n\n")) !== -1) {
+          const frame = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          const line = frame
+            .split("\n")
+            .find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          try {
+            handleEvent(JSON.parse(line.slice(6)) as SseEvent);
+          } catch {
+            /* skip malformed frame */
+          }
         }
       }
+    } catch (err) {
+      // Transport hiccups after the terminal event are not run failures —
+      // don't let a late connection reset overwrite a completed kit.
+      if (!terminalSeen.current) throw err;
+    } finally {
+      clearInterval(stallTimer);
+      setStallNote(null);
+    }
+
+    // Stream ended without done/error: the run died mid-flight (connection
+    // cut or server stopped). Surface it instead of pulsing forever.
+    if (!terminalSeen.current) {
+      throw new Error(
+        "The run ended unexpectedly — the connection dropped or the server stopped mid-generation. Nothing was saved; use Retry run."
+      );
     }
   }
 
@@ -489,6 +532,7 @@ export default function GeneratePage() {
     setDocStatus(PENDING_STATUS);
     setQaReport(null);
     draftsDone.current = 0;
+    lastRunRef.current = "pass2";
     setStage("drafting");
     snapProgress(40, "Writing application kit…");
     pulseToward(42, 78);
@@ -511,6 +555,7 @@ export default function GeneratePage() {
   async function runFull() {
     resetRunState();
     setSelection(null);
+    lastRunRef.current = "full";
     setStage("pass1");
     snapProgress(5, "Starting full pipeline…");
     pulseToward(8, 30);
@@ -837,9 +882,25 @@ export default function GeneratePage() {
           </div>
         )}
 
+        {stallNote && !error && (
+          <div className="mt-4 rounded-lg border border-[#7a5c2e] bg-[#2a2214] px-3 py-2 text-sm text-[#ffd28f]">
+            {stallNote}
+          </div>
+        )}
+
         {error && (
-          <div className="mt-4 rounded-lg border border-[color-mix(in_srgb,var(--danger)_45%,var(--border))] bg-[#2a1414] px-3 py-2 text-sm text-[var(--danger)]">
-            {error}
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-[color-mix(in_srgb,var(--danger)_45%,var(--border))] bg-[#2a1414] px-3 py-2 text-sm text-[var(--danger)]">
+            <span className="min-w-0 flex-1">{error}</span>
+            {stage === "error" && lastRunRef.current && (
+              <button
+                className="btn shrink-0"
+                onClick={() =>
+                  lastRunRef.current === "pass2" ? void runPass2() : void runFull()
+                }
+              >
+                Retry run
+              </button>
+            )}
           </div>
         )}
       </section>

@@ -5,6 +5,15 @@ import type { JsonSchemaObject } from "./schemas.js";
 
 export type LlmStage = "selection" | "drafting" | "verification";
 
+/**
+ * Hard cap per model call so a hung request fails loudly instead of stalling
+ * a run forever. XAI_TIMEOUT_MS is a dev/test hook.
+ */
+const CALL_TIMEOUT_MS =
+  Number(process.env["XAI_TIMEOUT_MS"]) > 0
+    ? Number(process.env["XAI_TIMEOUT_MS"])
+    : 300_000;
+
 export function getXaiClient(): OpenAI {
   const { apiKey } = loadSettings();
   if (!apiKey) {
@@ -16,6 +25,9 @@ export function getXaiClient(): OpenAI {
     apiKey,
     // XAI_BASE_URL is a dev/test hook (e.g. point at a local mock); defaults to the real API.
     baseURL: process.env["XAI_BASE_URL"]?.trim() || "https://api.x.ai/v1",
+    timeout: CALL_TIMEOUT_MS,
+    // One transient retry; schema/truncation retries are handled above this.
+    maxRetries: 1,
   });
 }
 
@@ -59,6 +71,13 @@ function isSchemaFormatError(err: unknown): boolean {
 }
 
 function wrapApiError(err: unknown, stage: LlmStage, model: string): Error {
+  if (err instanceof OpenAI.APIConnectionTimeoutError) {
+    return new Error(
+      `xAI ${stage} call (${model}) timed out after ${Math.round(
+        CALL_TIMEOUT_MS / 60_000
+      )} min. The service may be slow or unreachable — retry the run.`
+    );
+  }
   if (err instanceof OpenAI.APIError) {
     if (err.status === 401 || err.status === 403) {
       return new Error("xAI rejected the API key. Check it on the Settings page.");
@@ -244,11 +263,16 @@ export async function testConnection(): Promise<{ ok: boolean; model?: string; e
   try {
     const client = getXaiClient();
     const model = getModel();
-    await client.chat.completions.create({
-      model,
-      max_tokens: 5,
-      messages: [{ role: "user", content: "ping" }],
-    });
+    // A connectivity probe should answer in seconds, not wait out the
+    // long generation timeout.
+    await client.chat.completions.create(
+      {
+        model,
+        max_tokens: 5,
+        messages: [{ role: "user", content: "ping" }],
+      },
+      { timeout: 15_000, maxRetries: 0 }
+    );
     return { ok: true, model };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };

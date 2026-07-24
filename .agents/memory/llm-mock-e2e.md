@@ -14,3 +14,4 @@ To e2e-test an LLM pipeline without a real provider key: the API client honors a
 - Run the whole thing in a single shell script invocation (see shell-background-processes.md); assert on captured SSE frames with a small node script.
 - Have the mock RECORD the prompts it receives (e.g. last user message per schema) and assert boundary properties on them: untrusted data stays inside fences, forged fence markers get neutralized, token-efficient paths send the compact form instead of raw text, zero-LLM paths make zero calls (call counters).
 - Non-LLM upstream APIs mock the same way via their own base-URL env hook; an artificial delay (~150ms) in a mock handler makes concurrency/mutex tests (one 200 + one 409) deterministic.
+- Async logger transports (e.g. pino → pino-pretty worker thread) buffer: let the transport drain before killing a spawned server or asserting on the log tail, or "missing" lines are a harness artifact, not a code bug.

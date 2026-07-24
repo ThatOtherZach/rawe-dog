@@ -13,8 +13,12 @@ import {
   renderBriefCompact,
   renderBriefForDrafting,
 } from "../lib/jobs/brief.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
+
+/** Keep proxies from cutting the SSE stream during long silent model calls. */
+const HEARTBEAT_MS = 15_000;
 
 function errorStatus(message: string): number {
   return message.includes("API key") ||
@@ -94,10 +98,40 @@ router.post("/generate", async (req: Request, res: Response) => {
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders();
 
+      const t0 = Date.now();
+      const runLog = logger.child({
+        route: "generate-stream",
+        postingId: body.postingId || undefined,
+        mode: body.selection ? "pass2" : "full",
+      });
+      const streamOpen = () => !res.destroyed && !res.writableEnded;
+
+      // Every emitted event is logged so a stalled run is traceable after
+      // the fact: which stage started, which docs finished, where it died.
       const send = (event: GenerateProgressEvent) => {
-        res.write(`data: ${JSON.stringify(event)}\n\n`);
+        if (streamOpen()) res.write(`data: ${JSON.stringify(event)}\n\n`);
+        const ms = Date.now() - t0;
+        if (event.type === "error") {
+          runLog.error({ evt: "error", ms, error: event.error }, "generate stream error");
+        } else {
+          runLog.info(
+            {
+              evt: event.type,
+              ms,
+              stage: "stage" in event ? event.stage : undefined,
+              doc: "doc" in event ? event.doc : undefined,
+            },
+            "generate stream event"
+          );
+        }
       };
 
+      // SSE comment-frame heartbeat: clients ignore it, proxies see traffic.
+      const heartbeat = setInterval(() => {
+        if (streamOpen()) res.write(`: keepalive\n\n`);
+      }, HEARTBEAT_MS);
+
+      runLog.info({ evt: "start" }, "generate stream started");
       try {
         // With a provided selection this is the Pass 2 flow; without one it
         // runs the full pipeline (selection → drafts → verify → repair).
@@ -114,8 +148,12 @@ router.post("/generate", async (req: Request, res: Response) => {
         const message = err instanceof Error ? err.message : String(err);
         send({ type: "error", error: message });
       } finally {
-        res.write('data: {"type":"close"}\n\n');
-        res.end();
+        clearInterval(heartbeat);
+        runLog.info({ evt: "close", ms: Date.now() - t0 }, "generate stream closed");
+        if (streamOpen()) {
+          res.write('data: {"type":"close"}\n\n');
+          res.end();
+        }
       }
       return;
     }
