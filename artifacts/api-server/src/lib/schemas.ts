@@ -116,3 +116,135 @@ export const VERIFICATION_SCHEMA: JsonSchemaObject = {
     },
   },
 };
+
+/* ---------------------------------------------------------------------- */
+/* Postings: filter derivation + fit scan                                  */
+/* ---------------------------------------------------------------------- */
+
+/** TheirStack seniority vocabulary — mirrored in jobs/provider.ts. */
+const FILTER_SENIORITY = ["junior", "mid_level", "senior", "staff", "c_level"];
+
+export const FILTER_DERIVATION_SCHEMA: JsonSchemaObject = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "titleQueries",
+    "countryCodes",
+    "remotePreference",
+    "seniority",
+    "maxAgeDays",
+    "minSalaryUsd",
+    "descriptionKeywords",
+    "rationale",
+  ],
+  properties: {
+    titleQueries: {
+      type: "array",
+      description: "2-4 short job-title search queries, plain words only",
+      items: { type: "string" },
+    },
+    countryCodes: {
+      type: "array",
+      description: "ISO-2 country codes where the applicant can work; empty if unknown",
+      items: { type: "string" },
+    },
+    remotePreference: { type: "string", enum: ["remote_only", "any"] },
+    seniority: {
+      type: "array",
+      description: "0-2 seniority buckets matching the applicant's stage",
+      items: { type: "string", enum: FILTER_SENIORITY },
+    },
+    maxAgeDays: { type: "integer", description: "Posting max age in days, 7-30 (14 default)" },
+    minSalaryUsd: { type: "number", description: "Annual USD salary floor; 0 for none" },
+    descriptionKeywords: {
+      type: "array",
+      description: "0-3 niche literal keywords; usually empty",
+      items: { type: "string" },
+    },
+    rationale: { type: "string", description: "One sentence explaining the choices" },
+  },
+};
+
+/**
+ * Batch fit-scan schema. Job ids AND experience references are both
+ * enum-constrained so the API prevents made-up ids (same pattern as
+ * buildSelectionSchema).
+ */
+export function buildFitScanSchema(
+  jobIds: string[],
+  catalogIds: string[]
+): JsonSchemaObject {
+  const expItem: JsonSchemaObject =
+    catalogIds.length > 0 ? { type: "string", enum: catalogIds } : { type: "string" };
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["results"],
+    properties: {
+      results: {
+        type: "array",
+        description: "Exactly one entry per posting",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["jobId", "score", "rationale", "matchedExperienceIds", "brief"],
+          properties: {
+            jobId: { type: "string", enum: jobIds },
+            score: { type: "integer", description: "Calibrated 0-100 fit score" },
+            rationale: {
+              type: "string",
+              description: "One sentence naming the decisive factors",
+            },
+            matchedExperienceIds: {
+              type: "array",
+              description: "0-4 catalog IDs of best-matching experiences, strongest first",
+              items: expItem,
+            },
+            brief: {
+              type: "object",
+              additionalProperties: false,
+              required: [
+                "targetTitle",
+                "company",
+                "seniority",
+                "mustHaves",
+                "niceToHaves",
+                "responsibilities",
+                "atsKeywords",
+                "compensation",
+              ],
+              properties: {
+                targetTitle: { type: "string", description: "Role title as posted" },
+                company: { type: "string", description: "Empty string if unknown" },
+                seniority: {
+                  type: "string",
+                  description: "As stated/implied by the posting; empty if unclear",
+                },
+                mustHaves: {
+                  type: "array",
+                  description: "Hard requirements the posting states",
+                  items: { type: "string" },
+                },
+                niceToHaves: { type: "array", items: { type: "string" } },
+                responsibilities: {
+                  type: "array",
+                  description: "Core responsibilities of the role",
+                  items: { type: "string" },
+                },
+                atsKeywords: {
+                  type: "array",
+                  description: "8-15 concrete skills/tools/phrases from the posting",
+                  items: { type: "string" },
+                },
+                compensation: {
+                  type: "string",
+                  description: "Compensation exactly as stated; empty string if not stated",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+}

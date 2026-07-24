@@ -63,6 +63,11 @@ import {
 
 export type GenerateInput = {
   jobPosting: string;
+  /**
+   * Optional compact rendering of the posting (canonical brief) used by the
+   * selection stage instead of `jobPosting` — set by the posting-id handoff.
+   */
+  jobPostingCompact?: string;
   company?: string;
   targetTitle?: string;
   notes?: string;
@@ -170,7 +175,7 @@ async function runSelectionStage(
     stage: "selection",
     system: buildSelectionSystemPrompt(ctx.customAddon),
     user: buildSelectionUserMessage({
-      jobPosting: job,
+      jobPosting: input.jobPostingCompact?.trim() || job,
       company: input.company,
       targetTitle: input.targetTitle,
       notes: input.notes,

@@ -3,9 +3,16 @@ import {
   generateApplicationKit,
   runSelectionOnly,
   runKitFromSelection,
+  type GenerateInput,
   type GenerateProgressEvent,
 } from "../lib/generate.js";
 import type { Pass1Selection } from "../lib/parse-kit.js";
+import { getStoredPosting } from "../lib/jobs/store.js";
+import {
+  briefIsUsable,
+  renderBriefCompact,
+  renderBriefForDrafting,
+} from "../lib/jobs/brief.js";
 
 const router = Router();
 
@@ -18,10 +25,14 @@ function errorStatus(message: string): number {
     : 500;
 }
 
+/** Raw descriptions can be huge; cap the no-brief fallback. */
+const RAW_POSTING_CAP = 12000;
+
 router.post("/generate", async (req: Request, res: Response) => {
   try {
     const body = req.body as {
       jobPosting?: string;
+      postingId?: string;
       company?: string;
       targetTitle?: string;
       notes?: string;
@@ -32,7 +43,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     };
 
     const mode = body.mode || "full";
-    const input = {
+    const input: GenerateInput = {
       jobPosting: body.jobPosting || "",
       company: body.company,
       targetTitle: body.targetTitle,
@@ -40,6 +51,41 @@ router.post("/generate", async (req: Request, res: Response) => {
       overrideLeads: body.overrideLeads,
       skipPass1: body.skipPass1,
     };
+
+    // ID-only posting handoff: the client sends just a posting id and the
+    // server swaps in the canonical brief (token-efficient) — or the raw
+    // description if the posting was never scored.
+    if (body.postingId) {
+      const stored = getStoredPosting(String(body.postingId));
+      if (!stored) {
+        res.status(404).json({
+          ok: false,
+          error:
+            "Linked posting not found — it may have been pruned. Open the Postings page and refresh.",
+        });
+        return;
+      }
+      const brief = stored.fit?.brief;
+      if (!input.jobPosting.trim()) {
+        input.jobPosting = briefIsUsable(brief)
+          ? renderBriefForDrafting(stored.posting, brief)
+          : stored.posting.description.slice(0, RAW_POSTING_CAP);
+      }
+      if (briefIsUsable(brief)) {
+        input.jobPostingCompact = renderBriefCompact(stored.posting, brief);
+      }
+      if (!input.company?.trim()) input.company = stored.posting.company;
+      if (!input.targetTitle?.trim()) {
+        input.targetTitle = brief?.targetTitle || stored.posting.title;
+      }
+      if (!input.jobPosting.trim()) {
+        res.status(400).json({
+          ok: false,
+          error: "The linked posting has no description or brief to work from.",
+        });
+        return;
+      }
+    }
 
     if (mode === "stream") {
       res.setHeader("Content-Type", "text/event-stream; charset=utf-8");

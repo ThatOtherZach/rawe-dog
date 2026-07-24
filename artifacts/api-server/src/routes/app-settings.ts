@@ -20,6 +20,8 @@ router.put("/settings", async (req: Request, res: Response) => {
     selectionModel?: string;
     verificationModel?: string;
     clearApiKey?: boolean;
+    theirstackApiKey?: string;
+    clearTheirstackKey?: boolean;
   };
 
   const current = loadSettings();
@@ -28,12 +30,22 @@ router.put("/settings", async (req: Request, res: Response) => {
     model?: string;
     selectionModel?: string;
     verificationModel?: string;
+    theirstackApiKey?: string;
   } = {};
 
   if (body.clearApiKey) {
     partial.apiKey = "";
   } else if (typeof body.apiKey === "string" && body.apiKey.trim()) {
     partial.apiKey = body.apiKey.trim();
+  }
+
+  if (body.clearTheirstackKey) {
+    partial.theirstackApiKey = "";
+  } else if (
+    typeof body.theirstackApiKey === "string" &&
+    body.theirstackApiKey.trim()
+  ) {
+    partial.theirstackApiKey = body.theirstackApiKey.trim();
   }
 
   if (typeof body.model === "string") {
@@ -49,6 +61,9 @@ router.put("/settings", async (req: Request, res: Response) => {
 
   if (partial.apiKey === undefined) {
     partial.apiKey = current.apiKey;
+  }
+  if (partial.theirstackApiKey === undefined) {
+    partial.theirstackApiKey = current.theirstackApiKey;
   }
 
   saveSettings(partial);

@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 
 const links = [
   { href: "/", label: "Generate" },
+  { href: "/postings", label: "Postings" },
   { href: "/library", label: "Library" },
   { href: "/settings", label: "Settings" },
 ];

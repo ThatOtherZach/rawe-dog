@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MarkdownView } from "../components/MarkdownView";
 
@@ -49,6 +49,19 @@ type Kit = {
 };
 
 type ExpOption = { id: string; catalogId: string; title: string; fileName: string };
+
+type LinkedPosting = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  salary: string;
+  url: string;
+  score: number | null;
+  rationale: string;
+  matchedExperienceIds: string[];
+  hasBrief: boolean;
+};
 
 type QaFinding = {
   id: string;
@@ -155,6 +168,9 @@ export default function GeneratePage() {
   const [company, setCompany] = useState("");
   const [targetTitle, setTargetTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [, navigate] = useLocation();
+  const [linkedPosting, setLinkedPosting] = useState<LinkedPosting | null>(null);
+  const [linkedLoading, setLinkedLoading] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -209,6 +225,32 @@ export default function GeneratePage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Posting handoff: /?posting=<id> links a stored posting by ID only — at
+  // generate time the server swaps in its canonical brief (token-efficient).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("posting");
+    if (!id) return;
+    setLinkedLoading(true);
+    fetch(`/api/postings/${encodeURIComponent(id)}`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(
+            (data as { error?: string }).error || "Linked posting not found."
+          );
+        }
+        const p = data as LinkedPosting;
+        setLinkedPosting(p);
+        setCompany((c) => c || p.company || "");
+        setTargetTitle((t) => t || p.title || "");
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => setLinkedLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isMarkdownTab = tab === "alignment" || tab === "star";
   const activeDoc = TAB_TO_DOC[tab];
@@ -389,7 +431,19 @@ export default function GeneratePage() {
     }
   }
 
-  async function runPass1() {
+  /** Common request fields; a linked posting travels as an ID, never as text. */
+  function requestBase(): Record<string, unknown> {
+    return linkedPosting
+      ? { postingId: linkedPosting.id, company, targetTitle, notes }
+      : { jobPosting, company, targetTitle, notes };
+  }
+
+  function unlinkPosting() {
+    setLinkedPosting(null);
+    navigate("/", { replace: true });
+  }
+
+  async function runPass1(opts?: { useFitPicks?: boolean }) {
     resetRunState();
     setStage("pass1");
     snapProgress(5, "Pass 1: selecting experiences…");
@@ -400,10 +454,13 @@ export default function GeneratePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "pass1",
-          jobPosting,
-          company,
-          targetTitle,
-          notes,
+          ...requestBase(),
+          ...(opts?.useFitPicks && linkedPosting
+            ? {
+                skipPass1: true,
+                overrideLeads: linkedPosting.matchedExperienceIds,
+              }
+            : {}),
         }),
       });
       const data = await res.json();
@@ -439,10 +496,7 @@ export default function GeneratePage() {
     try {
       await streamGenerate({
         mode: "stream",
-        jobPosting,
-        company,
-        targetTitle,
-        notes,
+        ...requestBase(),
         selection: { ...selection, leadExperienceIds: selectedLeads },
         overrideLeads: selectedLeads,
       });
@@ -464,10 +518,7 @@ export default function GeneratePage() {
     try {
       await streamGenerate({
         mode: "stream",
-        jobPosting,
-        company,
-        targetTitle,
-        notes,
+        ...requestBase(),
       });
     } catch (err) {
       clearProgressTimer();
@@ -605,14 +656,87 @@ export default function GeneratePage() {
 
         <div className="grid items-stretch gap-4 md:grid-cols-3">
           <div className="flex h-full min-h-[20rem] flex-col md:col-span-2">
-            <label className="label shrink-0">Job posting (paste bin)</label>
-            <textarea
-              className="textarea textarea-fill"
-              placeholder="Paste the full job description here…"
-              value={jobPosting}
-              onChange={(e) => setJobPosting(e.target.value)}
-              disabled={busy}
-            />
+            {linkedPosting ? (
+              <>
+                <label className="label shrink-0">Linked posting</label>
+                <div className="flex flex-1 flex-col rounded-xl border border-[color-mix(in_srgb,var(--accent)_35%,var(--border))] bg-[#0c0e13] p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {linkedPosting.score !== null && (
+                      <span className="badge badge-ok">
+                        fit {linkedPosting.score}
+                      </span>
+                    )}
+                    <span className="text-base font-semibold">
+                      {linkedPosting.title}
+                    </span>
+                    <span className="text-sm text-[var(--muted)]">
+                      {linkedPosting.company}
+                    </span>
+                  </div>
+                  {linkedPosting.rationale && (
+                    <p className="mt-2 text-sm text-[var(--muted)]">
+                      {linkedPosting.rationale}
+                    </p>
+                  )}
+                  {linkedPosting.matchedExperienceIds.length > 0 && (
+                    <p className="mt-2 text-xs text-[var(--muted)]">
+                      Fit picks:{" "}
+                      {linkedPosting.matchedExperienceIds.map((id) => (
+                        <span
+                          key={id}
+                          className="mr-1 rounded border border-[var(--border)] px-1.5 py-0.5 text-[var(--accent)]"
+                        >
+                          {id}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                  <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+                    {linkedPosting.hasBrief
+                      ? "Generation runs from this posting's scored brief — nothing to paste, and the pipeline stays token-efficient."
+                      : "This posting has no fit brief yet, so its full description will be used."}
+                  </p>
+                  <div className="mt-auto flex flex-wrap gap-2 pt-3">
+                    {linkedPosting.url && (
+                      <a
+                        className="btn"
+                        href={linkedPosting.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Original posting ↗
+                      </a>
+                    )}
+                    <Link href="/postings" className="btn">
+                      All postings
+                    </Link>
+                    <button
+                      className="btn"
+                      onClick={unlinkPosting}
+                      disabled={busy}
+                    >
+                      Unlink — paste manually
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <label className="label shrink-0">Job posting (paste bin)</label>
+                <textarea
+                  className="textarea textarea-fill"
+                  placeholder="Paste the full job description here…"
+                  value={jobPosting}
+                  onChange={(e) => setJobPosting(e.target.value)}
+                  disabled={busy}
+                />
+                {linkedLoading && (
+                  <p className="mt-2 animate-pulse text-xs text-[var(--muted)]">
+                    Loading linked posting…
+                  </p>
+                )}
+              </>
+            )}
           </div>
           <div className="flex h-full flex-col space-y-3">
             <div>
@@ -647,14 +771,24 @@ export default function GeneratePage() {
             </div>
             <button
               className="btn btn-primary w-full shrink-0"
-              disabled={busy || !jobPosting.trim() || !ready}
+              disabled={busy || !ready || (!jobPosting.trim() && !linkedPosting)}
               onClick={() => void runPass1()}
             >
               {stage === "pass1" ? "Selecting…" : "1. Select experiences"}
             </button>
+            {linkedPosting && linkedPosting.matchedExperienceIds.length > 0 && (
+              <button
+                className="btn w-full shrink-0"
+                disabled={busy || !ready}
+                onClick={() => void runPass1({ useFitPicks: true })}
+                title="Skip selection — reuse the experiences matched during fit scoring (no extra LLM call)"
+              >
+                1b. Use fit picks ({linkedPosting.matchedExperienceIds.join(", ")})
+              </button>
+            )}
             <button
               className="btn w-full shrink-0"
-              disabled={busy || !jobPosting.trim() || !ready}
+              disabled={busy || !ready || (!jobPosting.trim() && !linkedPosting)}
               onClick={() => void runFull()}
               title="Skip manual review; run the full pipeline automatically"
             >

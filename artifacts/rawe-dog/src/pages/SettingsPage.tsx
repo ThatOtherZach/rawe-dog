@@ -6,6 +6,8 @@ type PublicSettings = {
   model: string;
   selectionModel: string;
   verificationModel: string;
+  hasTheirstackKey: boolean;
+  theirstackKeyMasked: string;
 };
 
 const MODELS = [
@@ -19,6 +21,7 @@ const MODELS = [
 export default function SettingsPage() {
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [apiKey, setApiKey] = useState("");
+  const [theirstackKey, setTheirstackKey] = useState("");
   const [model, setModel] = useState("grok-4.5");
   const [selectionModel, setSelectionModel] = useState("");
   const [verificationModel, setVerificationModel] = useState("");
@@ -45,6 +48,7 @@ export default function SettingsPage() {
       selectionModel: string;
       verificationModel: string;
       apiKey?: string;
+      theirstackApiKey?: string;
     } = {
       model,
       selectionModel,
@@ -52,6 +56,7 @@ export default function SettingsPage() {
     };
     const keyToSend = opts?.key ?? apiKey;
     if (keyToSend.trim()) body.apiKey = keyToSend.trim();
+    if (theirstackKey.trim()) body.theirstackApiKey = theirstackKey.trim();
 
     const res = await fetch("/api/settings", {
       method: "PUT",
@@ -62,6 +67,7 @@ export default function SettingsPage() {
     if (!res.ok) throw new Error((data as { error?: string }).error || "Save failed");
     setSettings(data as PublicSettings);
     if (keyToSend.trim()) setApiKey("");
+    if (theirstackKey.trim()) setTheirstackKey("");
     return data as PublicSettings;
   }
 
@@ -120,6 +126,33 @@ export default function SettingsPage() {
       setSettings(data as PublicSettings);
       setApiKey("");
       setMessage("API key cleared.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clearTheirstackKey() {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clearTheirstackKey: true,
+          model,
+          selectionModel,
+          verificationModel,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error((data as { error?: string }).error || "Failed");
+      setSettings(data as PublicSettings);
+      setTheirstackKey("");
+      setMessage("TheirStack key cleared.");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -259,6 +292,62 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+      </section>
+
+      <section className="panel p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <h2 className="mr-auto text-base font-semibold">Job search (Postings)</h2>
+          <span
+            className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}
+          >
+            TheirStack key {settings?.hasTheirstackKey ? "set" : "missing"}
+          </span>
+        </div>
+        <label className="label">TheirStack API key</label>
+        {settings?.hasTheirstackKey && (
+          <p className="mb-2 text-xs text-[var(--muted)]">
+            Current:{" "}
+            <code className="text-[var(--accent)]">
+              {settings.theirstackKeyMasked}
+            </code>
+          </p>
+        )}
+        <input
+          className="input"
+          type="password"
+          placeholder={
+            settings?.hasTheirstackKey
+              ? "Enter new key to replace, or leave blank to keep current"
+              : "Paste your TheirStack API key"
+          }
+          value={theirstackKey}
+          onChange={(e) => setTheirstackKey(e.target.value)}
+          disabled={busy}
+        />
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Powers the Postings page (live job search). Get a free key at{" "}
+          <a
+            href="https://theirstack.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[var(--accent)] underline"
+          >
+            theirstack.com
+          </a>{" "}
+          — 200 job credits/month free, 1 credit per fetched posting. Saved with
+          the Save button above; stored locally in your server's data directory.
+        </p>
+        {settings?.hasTheirstackKey && (
+          <div className="mt-3">
+            <button
+              className="btn"
+              onClick={() => void clearTheirstackKey()}
+              disabled={busy}
+            >
+              Clear TheirStack key
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="panel p-5">

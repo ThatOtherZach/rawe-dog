@@ -29,7 +29,12 @@ You are the applicant's personal hiring manager and career document specialist.
 
 /** Wrap externally-sourced text so the model treats it as data, not commands. */
 export function fenceData(label: string, content: string): string {
-  const body = (content || "").trim() || "(empty)";
+  // Strip fence-marker lookalikes so embedded data can never close its own
+  // fence and smuggle "trusted" instructions after a forged END marker.
+  const body =
+    (content || "")
+      .replace(/<<<\s*(?:BEGIN|END)\s+UNTRUSTED\s+DATA[^>]*>>>/gi, "[fence marker removed]")
+      .trim() || "(empty)";
   return `<<<BEGIN UNTRUSTED DATA: ${label}>>>\n${body}\n<<<END UNTRUSTED DATA: ${label}>>>`;
 }
 

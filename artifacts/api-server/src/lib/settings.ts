@@ -10,6 +10,8 @@ export type AppSettings = {
   selectionModel: string;
   /** Optional fast/cheap model for verification + JSON repair. Empty = use `model`. */
   verificationModel: string;
+  /** TheirStack API key for the Postings page job search. */
+  theirstackApiKey: string;
 };
 
 const DEFAULT_MODEL = "grok-4.5";
@@ -20,6 +22,7 @@ export function getDefaultSettings(): AppSettings {
     model: process.env["XAI_MODEL"]?.trim() || DEFAULT_MODEL,
     selectionModel: process.env["XAI_SELECTION_MODEL"]?.trim() || "",
     verificationModel: process.env["XAI_VERIFICATION_MODEL"]?.trim() || "",
+    theirstackApiKey: process.env["THEIRSTACK_API_KEY"]?.trim() || "",
   };
 }
 
@@ -36,6 +39,7 @@ export function loadSettings(): AppSettings {
       model: (raw.model ?? defaults.model).trim() || DEFAULT_MODEL,
       selectionModel: (raw.selectionModel ?? defaults.selectionModel).trim(),
       verificationModel: (raw.verificationModel ?? defaults.verificationModel).trim(),
+      theirstackApiKey: (raw.theirstackApiKey ?? defaults.theirstackApiKey).trim(),
     };
   } catch {
     return defaults;
@@ -59,6 +63,10 @@ export function saveSettings(partial: Partial<AppSettings>): AppSettings {
       partial.verificationModel !== undefined
         ? partial.verificationModel.trim()
         : current.verificationModel,
+    theirstackApiKey:
+      partial.theirstackApiKey !== undefined
+        ? partial.theirstackApiKey.trim()
+        : current.theirstackApiKey,
   };
   mkdirSync(getDataRoot(), { recursive: true });
   writeFileSync(getSettingsPath(), JSON.stringify(next, null, 2), "utf8");
@@ -79,6 +87,8 @@ export function publicSettings() {
     model: s.model,
     selectionModel: s.selectionModel,
     verificationModel: s.verificationModel,
+    hasTheirstackKey: Boolean(s.theirstackApiKey),
+    theirstackKeyMasked: maskApiKey(s.theirstackApiKey),
   };
 }
 
