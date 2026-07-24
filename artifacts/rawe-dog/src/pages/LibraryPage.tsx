@@ -159,7 +159,6 @@ export default function LibraryPage() {
           </div>
         )}
       </section>
-
       {/* Templates */}
       <section>
         <div className="mb-3 flex flex-wrap items-end gap-2">
@@ -230,9 +229,7 @@ export default function LibraryPage() {
                         className="btn"
                         href={`/api/library/file?slot=${encodeURIComponent(slot)}&id=${encodeURIComponent(file.id)}`}
                         download={file.originalName}
-                      >
-                        ↓
-                      </a>
+                      >Download</a>
                     </div>
                   )}
 
@@ -280,7 +277,6 @@ export default function LibraryPage() {
           })}
         </div>
       </section>
-
       {/* Knowledge files */}
       <section>
         <div className="mb-3">
