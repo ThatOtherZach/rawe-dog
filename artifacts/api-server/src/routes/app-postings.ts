@@ -19,6 +19,7 @@ import {
 import { briefIsUsable } from "../lib/jobs/brief.js";
 import { TheirStackProvider } from "../lib/jobs/theirstack.js";
 import { deriveFiltersFromProfile, scorePostings } from "../lib/jobs/match.js";
+import { loadMasterProfile, loadAllExperiences } from "../lib/context-pack.js";
 
 const router = Router();
 
@@ -84,8 +85,16 @@ function statePayload(file: PostingsFile) {
   };
 }
 
-router.get("/postings", (_req: Request, res: Response) => {
-  res.json(statePayload(loadPostingsFile()));
+router.get("/postings", async (_req: Request, res: Response) => {
+  const [master, experiences] = await Promise.all([
+    loadMasterProfile(),
+    loadAllExperiences(),
+  ]);
+  res.json({
+    ...statePayload(loadPostingsFile()),
+    hasMasterProfile: Boolean(master),
+    hasExperienceCatalog: experiences.length > 0,
+  });
 });
 
 router.post("/postings/derive-filters", async (_req: Request, res: Response) => {

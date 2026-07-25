@@ -59,6 +59,8 @@ type StatusCounts = {
 type PostingsState = {
   providerConfigured: boolean;
   xaiConfigured: boolean;
+  hasMasterProfile?: boolean;
+  hasExperienceCatalog?: boolean;
   filters: Filters | null;
   filtersSource: "derived" | "manual" | null;
   lastRefreshAt: string | null;
@@ -134,7 +136,10 @@ function scoreChipClass(score: number): string {
 function ScoreChip({ score }: { score: number | null }) {
   if (score === null) {
     return (
-      <span className="rounded-full border border-[var(--border)] px-2.5 py-0.5 text-xs text-[var(--muted)]">
+      <span
+        className="rounded-full border border-[var(--border)] px-2.5 py-0.5 text-xs text-[var(--muted)]"
+        title="Fit score not yet available — will be calculated on next refresh"
+      >
         unscored
       </span>
     );
@@ -198,6 +203,7 @@ export default function PostingsPage() {
 
   const [showDismissed, setShowDismissed] = useState(false);
   const [patchingId, setPatchingId] = useState<string | null>(null);
+  const [libraryBannerDismissed, setLibraryBannerDismissed] = useState(false);
 
   useEffect(() => {
     if (!refreshing) {
@@ -462,6 +468,34 @@ export default function PostingsPage() {
             .
           </div>
         )}
+        {state &&
+          state.xaiConfigured &&
+          (!state.hasMasterProfile || !state.hasExperienceCatalog) &&
+          !libraryBannerDismissed && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-[#7a5c2e] bg-[#2a2214] px-3 py-3 text-sm text-[#ffd28f]">
+              <span className="flex-1">
+                Fit scoring is disabled — it requires a{" "}
+                {!state.hasMasterProfile && !state.hasExperienceCatalog
+                  ? "Master Profile and at least one Experience Catalog entry"
+                  : !state.hasMasterProfile
+                  ? "Master Profile"
+                  : "at least one Experience Catalog entry"}{" "}
+                in the{" "}
+                <Link href="/library" className="underline">
+                  Library
+                </Link>
+                . Postings will appear unscored until then.
+              </span>
+              <button
+                className="ml-2 shrink-0 text-[#ffd28f] opacity-60 hover:opacity-100"
+                onClick={() => setLibraryBannerDismissed(true)}
+                title="Dismiss"
+                aria-label="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
         {filters && !showEditor && (
           <div className="mb-4 rounded-xl border border-[var(--border)] bg-[#0c0e13] p-4">
@@ -738,8 +772,7 @@ export default function PostingsPage() {
         {scoreFailures.length > 0 && (
           <div className="mt-4 rounded-lg border border-[#7a5c2e] bg-[#2a2214] px-3 py-2 text-xs text-[#ffd28f]">
             <p className="mb-1 font-medium">
-              Some postings could not be scored (they stay listed as “unscored”
-              and retry on the next refresh):
+              Some postings could not be scored and stay listed as "unscored":
             </p>
             <ul className="list-disc pl-4">
               {scoreFailures.slice(0, 5).map((f, i) => (
@@ -749,6 +782,9 @@ export default function PostingsPage() {
                 <li>…and {scoreFailures.length - 5} more</li>
               )}
             </ul>
+            <p className="mt-1.5">
+              These postings will be retried automatically on the next refresh.
+            </p>
           </div>
         )}
         {error && (
