@@ -48,3 +48,12 @@ Thumbs.db
 .cache/
 .local/
 artifacts/api-server/data/settings.json
+
+# API server runtime data (user content, PII — never commit)
+artifacts/api-server/data/library/
+artifacts/api-server/data/postings/
+artifacts/api-server/data/kits/
+
+# Playwright output artifacts
+tests/test-results/
+tests/playwright-report/
