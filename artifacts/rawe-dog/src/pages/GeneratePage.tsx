@@ -196,6 +196,8 @@ export default function GeneratePage() {
   /** Which streaming run last started, for one-click retry after a dead run. */
   const lastRunRef = useRef<"full" | "pass2" | null>(null);
   const [stallNote, setStallNote] = useState<string | null>(null);
+  /** AbortController for the active streaming fetch — cancel closes the SSE connection. */
+  const cancelRef = useRef<AbortController | null>(null);
 
   const clearProgressTimer = () => {
     if (progressTimer.current) {
@@ -412,11 +414,21 @@ export default function GeneratePage() {
     if (stage === "done" || stage === "error") setCreditsBump((n) => n + 1);
   }, [stage]);
 
+  function cancelRun() {
+    if (cancelRef.current && !cancelRef.current.signal.aborted) {
+      cancelRef.current.abort();
+    }
+  }
+
   async function streamGenerate(body: Record<string, unknown>) {
+    const ac = new AbortController();
+    cancelRef.current = ac;
+
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...creditHeader() },
       body: JSON.stringify(body),
+      signal: ac.signal,
     });
     const ct = res.headers.get("content-type") || "";
     if (!res.ok || !res.body || !ct.includes("text/event-stream")) {
@@ -558,8 +570,13 @@ export default function GeneratePage() {
       // Terminal state is set by the done/error event handlers.
     } catch (err) {
       clearProgressTimer();
-      setStage("error");
-      setError(err instanceof Error ? err.message : String(err));
+      if (err instanceof Error && err.name === "AbortError") {
+        setStage("idle");
+        setError(null);
+      } else {
+        setStage("error");
+        setError(err instanceof Error ? err.message : String(err));
+      }
     }
   }
 
@@ -578,8 +595,13 @@ export default function GeneratePage() {
       });
     } catch (err) {
       clearProgressTimer();
-      setStage("error");
-      setError(err instanceof Error ? err.message : String(err));
+      if (err instanceof Error && err.name === "AbortError") {
+        setStage("idle");
+        setError(null);
+      } else {
+        setStage("error");
+        setError(err instanceof Error ? err.message : String(err));
+      }
     }
   }
 
@@ -870,9 +892,20 @@ export default function GeneratePage() {
               <span className="font-medium text-[var(--text)]">
                 {statusMsg || "Working…"}
               </span>
-              <span className="tabular-nums text-[var(--accent)]">
-                {displayPct}%
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="tabular-nums text-[var(--accent)]">
+                  {displayPct}%
+                </span>
+                {busy && (
+                  <button
+                    className="btn text-xs"
+                    onClick={cancelRun}
+                    title="Abort the run and stop billing immediately"
+                  >
+                    Cancel run
+                  </button>
+                )}
+              </div>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-[#1a1f2b]">
               <div

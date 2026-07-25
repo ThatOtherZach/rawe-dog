@@ -100,27 +100,31 @@ async function rawStructuredCall(
     temperature: number;
   },
   maxTokens: number,
-  useJsonSchema: boolean
+  useJsonSchema: boolean,
+  signal?: AbortSignal
 ): Promise<RawResult> {
-  const response = await client.chat.completions.create({
-    model,
-    temperature: args.temperature,
-    max_tokens: maxTokens,
-    response_format: useJsonSchema
-      ? {
-          type: "json_schema",
-          json_schema: {
-            name: args.schemaName,
-            strict: true,
-            schema: args.schema,
-          },
-        }
-      : { type: "json_object" },
-    messages: [
-      { role: "system", content: args.system },
-      { role: "user", content: args.user },
-    ],
-  });
+  const response = await client.chat.completions.create(
+    {
+      model,
+      temperature: args.temperature,
+      max_tokens: maxTokens,
+      response_format: useJsonSchema
+        ? {
+            type: "json_schema",
+            json_schema: {
+              name: args.schemaName,
+              strict: true,
+              schema: args.schema,
+            },
+          }
+        : { type: "json_object" },
+      messages: [
+        { role: "system", content: args.system },
+        { role: "user", content: args.user },
+      ],
+    },
+    { signal }
+  );
   const choice = response.choices[0];
   return {
     content: choice?.message?.content || "",
@@ -137,28 +141,32 @@ async function repairMalformedJson(
   schemaName: string,
   schema: JsonSchemaObject,
   malformed: string,
-  maxTokens: number
+  maxTokens: number,
+  signal?: AbortSignal
 ): Promise<string> {
   const model = getModelForStage("verification");
-  const response = await client.chat.completions.create({
-    model,
-    temperature: 0,
-    max_tokens: maxTokens,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You repair malformed JSON. Output ONLY the corrected JSON object conforming to the provided JSON schema. Preserve the original content; fix structure only. No commentary.",
-      },
-      {
-        role: "user",
-        content: `JSON schema "${schemaName}":\n${JSON.stringify(
-          schema
-        )}\n\nMalformed output to fix:\n${malformed}`,
-      },
-    ],
-  });
+  const response = await client.chat.completions.create(
+    {
+      model,
+      temperature: 0,
+      max_tokens: maxTokens,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You repair malformed JSON. Output ONLY the corrected JSON object conforming to the provided JSON schema. Preserve the original content; fix structure only. No commentary.",
+        },
+        {
+          role: "user",
+          content: `JSON schema "${schemaName}":\n${JSON.stringify(
+            schema
+          )}\n\nMalformed output to fix:\n${malformed}`,
+        },
+      ],
+    },
+    { signal }
+  );
   return response.choices[0]?.message?.content || "";
 }
 
@@ -176,6 +184,7 @@ export async function chatStructured<T>(args: {
   schema: JsonSchemaObject;
   maxTokens?: number;
   temperature?: number;
+  signal?: AbortSignal;
 }): Promise<{ data: T; content: string; meta: StructuredCallMeta }> {
   const client = getXaiClient();
   const model = getModelForStage(args.stage);
@@ -183,6 +192,7 @@ export async function chatStructured<T>(args: {
   let maxTokens = args.maxTokens ?? 8192;
   let useJsonSchema = !schemaUnsupportedModels.has(model);
   let retried = false;
+  const signal = args.signal;
 
   const callArgs = {
     system: args.system,
@@ -194,14 +204,14 @@ export async function chatStructured<T>(args: {
 
   let result: RawResult;
   try {
-    result = await rawStructuredCall(client, model, callArgs, maxTokens, useJsonSchema);
+    result = await rawStructuredCall(client, model, callArgs, maxTokens, useJsonSchema, signal);
   } catch (err) {
     if (useJsonSchema && isSchemaFormatError(err)) {
       schemaUnsupportedModels.add(model);
       useJsonSchema = false;
       retried = true;
       try {
-        result = await rawStructuredCall(client, model, callArgs, maxTokens, false);
+        result = await rawStructuredCall(client, model, callArgs, maxTokens, false, signal);
       } catch (err2) {
         throw wrapApiError(err2, args.stage, model);
       }
@@ -215,7 +225,7 @@ export async function chatStructured<T>(args: {
     retried = true;
     maxTokens = Math.min(maxTokens * 2, 16384);
     try {
-      result = await rawStructuredCall(client, model, callArgs, maxTokens, useJsonSchema);
+      result = await rawStructuredCall(client, model, callArgs, maxTokens, useJsonSchema, signal);
     } catch (err) {
       throw wrapApiError(err, args.stage, model);
     }
@@ -238,7 +248,8 @@ export async function chatStructured<T>(args: {
       args.schemaName,
       args.schema,
       result.content,
-      maxTokens
+      maxTokens,
+      signal
     );
   } catch {
     // fall through to the error below

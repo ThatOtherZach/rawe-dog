@@ -158,6 +158,18 @@ router.post("/generate", async (req: Request, res: Response) => {
       });
       const streamOpen = () => !res.destroyed && !res.writableEnded;
 
+      // AbortController threaded through the pipeline: aborting it
+      // cancels every in-flight xAI call immediately, stopping token
+      // spend as soon as the client disconnects or clicks Cancel.
+      const abortController = new AbortController();
+      const onClientClose = () => {
+        if (!abortController.signal.aborted) {
+          runLog.info({ evt: "abort", ms: Date.now() - t0 }, "client disconnected — aborting pipeline");
+          abortController.abort();
+        }
+      };
+      req.on("close", onClientClose);
+
       // Every emitted event is logged so a stalled run is traceable after
       // the fact: which stage started, which docs finished, where it died.
       const send = (event: GenerateProgressEvent) => {
@@ -183,6 +195,8 @@ router.post("/generate", async (req: Request, res: Response) => {
         if (streamOpen()) res.write(`: keepalive\n\n`);
       }, HEARTBEAT_MS);
 
+      input.signal = abortController.signal;
+
       runLog.info({ evt: "start" }, "generate stream started");
       try {
         // With a provided selection this is the Pass 2 flow; without one it
@@ -196,11 +210,20 @@ router.post("/generate", async (req: Request, res: Response) => {
         if (body.postingId) {
           setPostingStatus(String(body.postingId), "kit_generated");
         }
-        await consumeCredit();
+        // Don't spend a credit if the client disconnected or cancelled —
+        // the pipeline may have finished locally but nobody will see the kit.
+        if (!abortController.signal.aborted) {
+          await consumeCredit();
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        send({ type: "error", error: message });
+        // Suppress abort errors — the client already left; no point writing
+        // to a dead socket, and "AbortError" is not a run failure.
+        if (!abortController.signal.aborted) {
+          send({ type: "error", error: message });
+        }
       } finally {
+        req.off("close", onClientClose);
         clearInterval(heartbeat);
         runLog.info({ evt: "close", ms: Date.now() - t0 }, "generate stream closed");
         if (streamOpen()) {

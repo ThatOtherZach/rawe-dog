@@ -74,6 +74,13 @@ export type GenerateInput = {
   /** Catalog IDs (preferred); library file IDs or titles also accepted. */
   overrideLeads?: string[];
   skipPass1?: boolean;
+  /**
+   * Optional abort signal threaded from the route layer. When the client
+   * disconnects (or clicks Cancel), the signal fires and every in-flight
+   * xAI call is aborted immediately — no more tokens billed for a run
+   * nobody will see.
+   */
+  signal?: AbortSignal;
 };
 
 export type Pass1Stats = {
@@ -186,6 +193,7 @@ async function runSelectionStage(
     schema,
     maxTokens: 1536,
     temperature: 0.2,
+    signal: input.signal,
   });
 
   let selection = normalizePass1(data);
@@ -305,6 +313,7 @@ async function draftDocument(args: {
     schema: DRAFT_SCHEMA,
     maxTokens: DRAFT_TOKENS[doc] + (repair ? 512 : 0),
     temperature: repair ? 0.2 : 0.35,
+    signal: input.signal,
   });
 
   const draft = normalizeDraft(data);
@@ -417,6 +426,12 @@ async function runVerificationStage(
     message: "Verifying kit (grounding, consistency, form, keywords)…",
   });
 
+  // If the run was aborted, rethrow immediately instead of degrading.
+  if (input.signal?.aborted) {
+    const e = new Error("Run cancelled");
+    e.name = "AbortError";
+    throw e;
+  }
   try {
     const { data, content } = await chatStructured<VerifierOutput>({
       stage: "verification",
@@ -441,11 +456,15 @@ async function runVerificationStage(
       schema: VERIFICATION_SCHEMA,
       maxTokens: 3072,
       temperature: 0.1,
+      signal: input.signal,
     });
     return { verifier: normalizeVerifier(data), chars: content.length };
   } catch (err) {
-    // A finished kit is still valuable if the verifier call hiccups:
-    // degrade to automated checks and say so in the QA report.
+    // Abort = client disconnected or user cancelled; propagate so the pipeline
+    // stops immediately and no credit is spent.
+    if (err instanceof Error && err.name === "AbortError") throw err;
+    // Any other verifier failure: degrade to automated checks and say so in
+    // the QA report — a finished kit is still valuable.
     return {
       verifier: null,
       chars: 0,
@@ -509,6 +528,18 @@ async function runRepairStage(
   const failures: string[] = [];
   let chars = 0;
   let anyRetried = false;
+
+  // If any repair call was aborted, propagate so the pipeline stops and
+  // no credit is spent — treat abort as fatal even inside repair.
+  for (const s of settled) {
+    if (
+      s.status === "rejected" &&
+      s.reason instanceof Error &&
+      s.reason.name === "AbortError"
+    ) {
+      throw s.reason;
+    }
+  }
 
   settled.forEach((s, i) => {
     const doc = docs[i];
