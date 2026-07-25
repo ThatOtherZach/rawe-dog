@@ -248,20 +248,18 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+      {/* xAI */}
       <section className="panel p-5">
         <div className="mb-4 flex items-center gap-2">
-          <h1 className="mr-auto text-xl font-semibold">Settings</h1>
-          <span className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}>
-            TheirStack key {settings?.hasTheirstackKey ? "set" : "missing"}
-          </span>
+          <h2 className="mr-auto text-base font-semibold">xAI</h2>
           <span className={`badge ${settings?.hasApiKey ? "badge-ok" : "badge-bad"}`}>
-            API key {settings?.hasApiKey ? "set" : "missing"}
+            AI LLM key {settings?.hasApiKey ? "set" : "missing"}
           </span>
         </div>
 
         <div className="space-y-5">
           <div>
-            <label className="label">xAI API key</label>
+            <label className="label">API key</label>
             {settings?.hasApiKey && !showXaiInput ? (
               <div className="flex items-center gap-3">
                 <code className="text-sm text-[var(--accent)]">{settings.apiKeyMasked}</code>
@@ -295,46 +293,6 @@ export default function SettingsPage() {
                     console.x.ai
                   </a>
                   . Keys are stored locally in your server's data directory.
-                </p>
-              </>
-            )}
-          </div>
-
-          <div>
-            <label className="label">TheirStack API key</label>
-            {settings?.hasTheirstackKey && !showTheirstackInput ? (
-              <div className="flex items-center gap-3">
-                <code className="text-sm text-[var(--accent)]">{settings.theirstackKeyMasked}</code>
-                <button
-                  className="btn btn-danger text-xs"
-                  onClick={() => void clearTheirstackKey()}
-                  disabled={busy}
-                >
-                  Clear
-                </button>
-              </div>
-            ) : (
-              <>
-                <input
-                  className="input"
-                  type="password"
-                  placeholder="Paste your TheirStack API key"
-                  value={theirstackKey}
-                  onChange={(e) => setTheirstackKey(e.target.value)}
-                  disabled={busy}
-                  autoFocus={settings?.hasTheirstackKey}
-                />
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  Powers the Postings page (live job search). Get a free key at{" "}
-                  <a
-                    href="https://theirstack.com"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[var(--accent)] underline"
-                  >
-                    theirstack.com
-                  </a>{" "}
-                  — 200 job credits/month free, 1 credit per fetched posting.
                 </p>
               </>
             )}
@@ -438,6 +396,66 @@ export default function SettingsPage() {
           {error && (
             <div className="rounded-lg border border-[color-mix(in_srgb,var(--danger)_45%,var(--border))] bg-[#2a1414] px-3 py-2 text-sm text-[var(--danger)]">
               {error}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* TheirStack */}
+      <section className="panel p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <h2 className="mr-auto text-base font-semibold">TheirStack</h2>
+          <span className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}>
+            API key {settings?.hasTheirstackKey ? "set" : "missing"}
+          </span>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="label">API key</label>
+            {settings?.hasTheirstackKey && !showTheirstackInput ? (
+              <div className="flex items-center gap-3">
+                <code className="text-sm text-[var(--accent)]">{settings.theirstackKeyMasked}</code>
+                <button
+                  className="btn btn-danger text-xs"
+                  onClick={() => void clearTheirstackKey()}
+                  disabled={busy}
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  className="input"
+                  type="password"
+                  placeholder="Paste your TheirStack API key"
+                  value={theirstackKey}
+                  onChange={(e) => setTheirstackKey(e.target.value)}
+                  disabled={busy}
+                  autoFocus={settings?.hasTheirstackKey}
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Powers the Postings page (live job search). Get a free key at{" "}
+                  <a
+                    href="https://theirstack.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[var(--accent)] underline"
+                  >
+                    theirstack.com
+                  </a>{" "}
+                  — 200 job credits/month free, 1 credit per fetched posting.
+                </p>
+              </>
+            )}
+          </div>
+
+          {!settings?.hasTheirstackKey && (
+            <div className="flex flex-wrap gap-2">
+              <button className="btn btn-primary" onClick={() => void onSave()} disabled={busy}>
+                {busy ? "Saving…" : "Save"}
+              </button>
             </div>
           )}
         </div>

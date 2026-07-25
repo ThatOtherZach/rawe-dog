@@ -906,7 +906,7 @@ export default function PostingsPage() {
             disabled={busy || !state?.xaiConfigured}
             title="One cheap LLM call reads your Master Profile and proposes filters"
           >
-            {deriving ? "Deriving…" : "Filter by Profile"}
+            {deriving ? "Deriving…" : "Filter by Master Profile"}
           </button>
           {filters && !showEditor && (
             <button className="btn" onClick={() => setEditing(true)} disabled={busy}>
