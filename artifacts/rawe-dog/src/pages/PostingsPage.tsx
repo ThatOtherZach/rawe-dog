@@ -31,6 +31,12 @@ type PostingStatus = "new" | "kit_generated" | "applied" | "dismissed";
 
 type LegitimacyTier = "high_confidence" | "caution" | "suspicious";
 
+type CrossListingRef = {
+  id: string;
+  company: string;
+  title: string;
+};
+
 type PostingSummary = {
   id: string;
   title: string;
@@ -52,6 +58,8 @@ type PostingSummary = {
   /** Absent on pre-existing records — no badge rendered when null. */
   legitimacy: LegitimacyTier | null;
   legitimacySignals: string[];
+  /** Set when this posting's content fingerprint matches an earlier stored actionable one. */
+  crossListingOf: CrossListingRef | null;
 };
 
 type StatusCounts = {
@@ -221,16 +229,52 @@ const RANK_LABELS = [
   "Eh, maybe?",
 ] as const;
 
-/** Derive the top-four picks: scored, actionable (not applied/dismissed), in existing rank order. */
+/**
+ * Derive the top-four picks: scored, actionable (not applied/dismissed), in
+ * existing rank order.
+ *
+ * Cross-listing dedup — three cases all handled:
+ * 1. Normal: original A is picked, cross-listing B (→A) is skipped because
+ *    A is in pickedIds.
+ * 2. Inverted score: cross-listing B (→A) scores higher and is picked first;
+ *    A is then skipped because A's id is in crossListingTargets.
+ * 3. Sibling: A is picked, then both B (→A) and C (→A) are skipped because
+ *    A is in pickedIds AND in crossListingTargets — either check catches them.
+ *    Even if B was picked before A (inverted), C is caught because A ends up
+ *    in crossListingTargets and C.crossListingOf.id === A.
+ */
 export function pickTopFour(postings: PostingSummary[]): PostingSummary[] {
-  return postings
-    .filter(
-      (p) =>
-        p.score !== null &&
-        p.status !== "applied" &&
-        p.status !== "dismissed"
+  const picks: PostingSummary[] = [];
+  /** IDs of postings already added to the digest. */
+  const pickedIds = new Set<string>();
+  /**
+   * IDs that are the crossListingOf target of any already-picked posting.
+   * Serves double duty:
+   * - Excludes the original when a higher-scored cross-listing is picked first.
+   * - Excludes sibling cross-listings (both B→A and C→A) once any of them or
+   *   A itself has been picked: all share the same target A, so once A lands in
+   *   this set every sibling is caught by the second guard below.
+   */
+  const crossListingTargets = new Set<string>();
+
+  for (const p of postings) {
+    if (picks.length >= 4) break;
+    if (p.score === null) continue;
+    if (p.status === "applied" || p.status === "dismissed") continue;
+    // Guard 1: this posting is the root target of a cross-listing already picked
+    if (crossListingTargets.has(p.id)) continue;
+    // Guard 2: this posting's cross-listing target is already picked, OR is
+    // itself a sibling target (another picked posting also points to the same root)
+    if (
+      p.crossListingOf &&
+      (pickedIds.has(p.crossListingOf.id) || crossListingTargets.has(p.crossListingOf.id))
     )
-    .slice(0, 4);
+      continue;
+    picks.push(p);
+    pickedIds.add(p.id);
+    if (p.crossListingOf) crossListingTargets.add(p.crossListingOf.id);
+  }
+  return picks;
 }
 
 function DigestStrip({
@@ -1065,6 +1109,14 @@ export default function PostingsPage() {
                     <span className="text-sm text-[var(--muted)]">
                       {p.company}
                     </span>
+                    {p.crossListingOf && (
+                      <span
+                        className="rounded-full border border-[#4a3c6e] bg-[#1a1428] px-2 py-0.5 text-xs text-[#c8b4ff]"
+                        title="This posting appears to be the same job listed under a different URL — only one will appear in Today's picks"
+                      >
+                        ≈ likely same as {p.crossListingOf.company} — {p.crossListingOf.title}
+                      </span>
+                    )}
                     {isApplied && (
                       <span className="rounded-full border border-[color-mix(in_srgb,var(--accent)_55%,var(--border))] px-2 py-0.5 text-xs text-[var(--accent)]">
                         ✓ applied

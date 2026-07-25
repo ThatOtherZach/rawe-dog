@@ -123,6 +123,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 ## Credits
 
 - **Ghost-posting legitimacy signal taxonomy** adapted from [career-ops](https://github.com/santifer/career-ops) (MIT licence, Santiago Fernández de Valderrama). Design port of the signal categories and calibration rules; no shared code. Attribution comments live in `artifacts/api-server/src/lib/schemas.ts` (schema) and `artifacts/api-server/src/lib/jobs/store.ts` (type).
+- **Cross-listing content fingerprint** ported from [career-ops `fingerprint-core.mjs`](https://github.com/santifer/career-ops) (MIT licence, Santiago Fernández de Valderrama). TypeScript port of the 64-bit SimHash over 3-token shingles, normalization pipeline, and tuning constants (MIN_CHARS=200, MIN_TOKENS=3, SIMILARITY_THRESHOLD=0.92). Full MIT copyright notice preserved in `artifacts/api-server/src/lib/jobs/fingerprint.ts`.
 
 ## Pointers
 

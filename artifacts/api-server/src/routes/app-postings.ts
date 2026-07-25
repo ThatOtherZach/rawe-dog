@@ -10,6 +10,7 @@ import {
   type PostingsFile,
   type StoredPosting,
   type PostingStatus,
+  type CrossListingRef,
 } from "../lib/jobs/store.js";
 import {
   JobProviderError,
@@ -46,6 +47,8 @@ function summarize(sp: StoredPosting) {
     // Legitimacy fields — absent on pre-existing records (no badge rendered)
     legitimacy: fit?.legitimacy ?? null,
     legitimacySignals: fit?.legitimacySignals ?? [],
+    // Cross-listing detection — null when not a duplicate
+    crossListingOf: (sp.crossListingOf ?? null) as CrossListingRef | null,
   };
 }
 

@@ -12,6 +12,7 @@ import path from "path";
 import { getDataRoot } from "../paths.js";
 import { normalizeBrief, type JobBrief } from "./brief.js";
 import { normalizeFilters, type JobPosting, type SearchFilters } from "./provider.js";
+import { fingerprintText, isCrossListing } from "./fingerprint.js";
 
 export type LegitimacyTier = "high_confidence" | "caution" | "suspicious";
 
@@ -38,11 +39,30 @@ export type FitResult = {
 
 export type PostingStatus = "new" | "kit_generated" | "applied" | "dismissed";
 
+export type CrossListingRef = {
+  /** Internal id of the earlier posting this one duplicates. */
+  id: string;
+  company: string;
+  title: string;
+};
+
 export type StoredPosting = {
   posting: JobPosting;
   fit: FitResult | null;
   addedAt: string;
   status: PostingStatus;
+  /**
+   * SimHash fingerprint of the normalized description (16 hex chars).
+   * Empty string when the body is too short to fingerprint reliably.
+   * Absent on pre-existing records — treated as no fingerprint.
+   */
+  fingerprint?: string;
+  /**
+   * Set when this posting's content fingerprint matches an earlier stored
+   * actionable posting — indicates a likely cross-listing of the same opening
+   * under a different URL or employer name.
+   */
+  crossListingOf?: CrossListingRef;
 };
 
 export type RefreshStats = {
@@ -132,7 +152,20 @@ export function saveFilters(
   return file;
 }
 
-/** Insert new postings, skipping ids we already have. Returns the added ones. */
+/**
+ * Insert new postings, skipping ids we already have.
+ *
+ * Computes a SimHash content fingerprint for each incoming posting and
+ * compares it against existing actionable postings (status "new" or
+ * "kit_generated") and against other postings in the same batch. When a
+ * near-duplicate is found (similarity ≥ 0.92), the newer posting is
+ * annotated with `crossListingOf` pointing at the earlier one.
+ *
+ * Existing postings that lack a fingerprint get one computed and stored as a
+ * cheap side-effect of the comparison scan (no extra reads, no LLM calls).
+ *
+ * Returns the added StoredPosting records (with fingerprint/crossListingOf set).
+ */
 export function upsertPostings(incoming: JobPosting[]): {
   added: StoredPosting[];
   total: number;
@@ -140,19 +173,94 @@ export function upsertPostings(incoming: JobPosting[]): {
   const file = loadPostingsFile();
   const known = new Set(file.postings.map((sp) => sp.posting.id));
   const now = new Date().toISOString();
+
+  // Build a fingerprint index from existing actionable postings.
+  // Also backfill fingerprints that are missing (cheap compute-on-next-scan).
+  const existingIndex: { fp: string; id: string; company: string; title: string }[] = [];
+  let backfilled = false;
+
+  // Fast id → StoredPosting map for root resolution (see below).
+  const byId = new Map<string, StoredPosting>(
+    file.postings.map((sp) => [sp.posting.id, sp])
+  );
+
+  for (const sp of file.postings) {
+    if (sp.status === "dismissed" || sp.status === "applied") continue;
+    if (!sp.fingerprint) {
+      const fp = fingerprintText(sp.posting.description ?? "");
+      if (fp) {
+        sp.fingerprint = fp;
+        backfilled = true;
+      }
+    }
+    if (sp.fingerprint) {
+      // Resolve to the canonical root posting so that a new duplicate always
+      // points at the original, not at an intermediate cross-listing.
+      // Without this, a chain A → B → C would form: C points to B instead of
+      // A, so pickTopFour cannot suppress C when only A is picked.
+      let root: StoredPosting = sp;
+      const visited = new Set<string>([sp.posting.id]);
+      while (root.crossListingOf) {
+        const parent = byId.get(root.crossListingOf.id);
+        if (!parent || visited.has(parent.posting.id)) break; // guard against cycles
+        visited.add(parent.posting.id);
+        root = parent;
+      }
+      existingIndex.push({
+        fp: sp.fingerprint,
+        id: root.posting.id,
+        company: root.posting.company,
+        title: root.posting.title,
+      });
+    }
+  }
+
+  // Fingerprint index for postings added within this batch (to catch same-batch duplicates).
+  const batchIndex: { fp: string; id: string; company: string; title: string }[] = [];
+
   const added: StoredPosting[] = [];
   for (const posting of incoming) {
     if (known.has(posting.id)) continue;
     known.add(posting.id);
-    added.push({ posting, fit: null, addedAt: now, status: "new" });
+
+    const fp = fingerprintText(posting.description ?? "");
+    let crossListingOf: CrossListingRef | undefined;
+
+    if (fp) {
+      // Check existing actionable postings first, then within the batch.
+      const match =
+        existingIndex.find((e) => isCrossListing(fp, e.fp)) ??
+        batchIndex.find((e) => isCrossListing(fp, e.fp));
+      if (match) {
+        crossListingOf = { id: match.id, company: match.company, title: match.title };
+      }
+    }
+
+    const sp: StoredPosting = {
+      posting,
+      fit: null,
+      addedAt: now,
+      status: "new",
+      ...(fp ? { fingerprint: fp } : {}),
+      ...(crossListingOf ? { crossListingOf } : {}),
+    };
+    added.push(sp);
+
+    // Only add to the batch index if this isn't itself a cross-listing,
+    // to avoid chaining where C→B and then D→C (D should point to B).
+    if (fp && !crossListingOf) {
+      batchIndex.push({ fp, id: posting.id, company: posting.company, title: posting.title });
+    }
   }
+
+  // Prepend newest first; backfilled fingerprints already mutated in place.
   file.postings = [...added, ...file.postings];
   if (file.postings.length > MAX_STORED) {
     file.postings = [...file.postings]
       .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
       .slice(0, MAX_STORED);
   }
-  savePostingsFile(file);
+  if (added.length || backfilled) savePostingsFile(file);
   return { added, total: file.postings.length };
 }
 
