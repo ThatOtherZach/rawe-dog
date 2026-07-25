@@ -265,13 +265,13 @@ export default function LibraryPage() {
                       href={meta.starterHref}
                       download={meta.starterName}
                     >
-                      {file ? "Starter copy" : "Download starter"}
+                      {file ? "Template" : "Download starter"}
                     </a>
                     <label className="btn cursor-pointer">
                       {busy
                         ? "Working…"
                         : file
-                          ? "Replace active"
+                          ? "Replace"
                           : "Set active template"}
                       <input
                         type="file"
@@ -356,14 +356,14 @@ export default function LibraryPage() {
                     data-testid={`compose-open-${slot.slot}`}
                     onClick={() => setComposeSlot(slot)}
                   >
-                    Compose with a quiz
+                    Create
                   </button>
                   <a
                     className="btn"
                     href={starter.starterHref}
                     download={starter.starterName}
                   >
-                    {files.length === 0 ? "Download starter" : "Starter copy"}
+                    {files.length === 0 ? "Download starter" : "Template"}
                   </a>
                   <label className="btn cursor-pointer">
                     {busy ? "Working…" : slot.multi ? "+ Add file" : "Upload"}
