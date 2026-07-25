@@ -266,11 +266,11 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <code className="text-sm text-[var(--accent)]">{settings.apiKeyMasked}</code>
                 <button
-                  className="btn text-xs"
-                  onClick={() => setShowXaiInput(true)}
+                  className="btn btn-danger text-xs"
+                  onClick={() => void clearKey()}
                   disabled={busy}
                 >
-                  Replace
+                  Clear
                 </button>
               </div>
             ) : (
@@ -306,11 +306,11 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <code className="text-sm text-[var(--accent)]">{settings.theirstackKeyMasked}</code>
                 <button
-                  className="btn text-xs"
-                  onClick={() => setShowTheirstackInput(true)}
+                  className="btn btn-danger text-xs"
+                  onClick={() => void clearTheirstackKey()}
                   disabled={busy}
                 >
-                  Replace
+                  Clear
                 </button>
               </div>
             ) : (
@@ -427,16 +427,6 @@ export default function SettingsPage() {
             <button className="btn" onClick={() => void test()} disabled={busy}>
               {busy ? "Testing…" : "Test connection"}
             </button>
-            {settings?.hasApiKey && (
-              <button className="btn btn-danger" onClick={() => void clearKey()} disabled={busy}>
-                Clear xAI key
-              </button>
-            )}
-            {settings?.hasTheirstackKey && (
-              <button className="btn btn-danger" onClick={() => void clearTheirstackKey()} disabled={busy}>
-                Clear TheirStack key
-              </button>
-            )}
           </div>
 
           {message && (
