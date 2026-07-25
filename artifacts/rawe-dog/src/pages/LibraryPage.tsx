@@ -61,6 +61,24 @@ const TEMPLATE_META: Record<
   },
 };
 
+const KNOWLEDGE_META: Record<
+  (typeof KNOWLEDGE_SLOTS)[number],
+  { starterHref: string; starterName: string }
+> = {
+  "master-profile": {
+    starterHref: "/starters/Master-Profile.md",
+    starterName: "Master-Profile.md",
+  },
+  experience: {
+    starterHref: "/starters/Experience-Role.md",
+    starterName: "Experience-Role.md",
+  },
+  "system-instructions": {
+    starterHref: "/starters/System-Instructions.md",
+    starterName: "System-Instructions.md",
+  },
+};
+
 export default function LibraryPage() {
   const [data, setData] = useState<LibraryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -284,7 +302,9 @@ export default function LibraryPage() {
             Knowledge files
           </h2>
           <p className="text-sm text-[var(--muted)]">
-            Master Profile, experience files, and optional custom system instructions.
+            Master Profile, experience files, and optional custom system
+            instructions. Each card offers a starter that shows the expected
+            shape — download, fill in, upload.
           </p>
         </div>
 
@@ -293,6 +313,8 @@ export default function LibraryPage() {
             const files = data?.files[slot.slot] || [];
             const busy = busySlot === slot.slot;
             const isDrag = dragOver === slot.slot;
+            const starter =
+              KNOWLEDGE_META[slot.slot as (typeof KNOWLEDGE_SLOTS)[number]];
 
             return (
               <section
@@ -320,6 +342,13 @@ export default function LibraryPage() {
                       </span>
                     )}
                   </h3>
+                  <a
+                    className={files.length === 0 ? "btn btn-primary" : "btn"}
+                    href={starter.starterHref}
+                    download={starter.starterName}
+                  >
+                    {files.length === 0 ? "Download starter" : "Starter copy"}
+                  </a>
                   <label className="btn cursor-pointer">
                     {busy ? "Working…" : slot.multi ? "+ Add file" : "Upload"}
                     <input
