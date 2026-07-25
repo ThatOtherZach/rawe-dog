@@ -38,6 +38,7 @@ import {
 import { encodeToken, checkToken, creditsEnforced } from "../lib/credits/tokens.js";
 import { cadBreakdownForUsdCents } from "../lib/credits/fxtax.js";
 import { logger } from "../lib/logger.js";
+import { loadSettings } from "../lib/settings.js";
 
 const router = Router();
 const log = logger.child({ route: "credits" });
@@ -60,9 +61,12 @@ router.get("/credits/status", async (req: Request, res: Response) => {
         ? { valid: true, remaining: check.token.remaining }
         : { valid: false, remaining: 0, reason: check.reason };
     }
+    const settings = loadSettings();
+    const providerConfigured = Boolean(settings.theirstackApiKey);
     res.json({
       ok: true,
       enforced,
+      providerConfigured,
       priceUsdCents: getSearchCreditPriceCents(),
       crypto: address
         ? { available: true, network: cfg.network, receivingAddress: address }

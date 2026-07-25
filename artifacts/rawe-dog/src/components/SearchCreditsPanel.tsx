@@ -52,6 +52,7 @@ export function SearchCreditsPanel({
   const hasCredit = Boolean(status.token?.valid);
   const remaining = status.token?.remaining ?? 0;
   const priceUsd = (status.priceUsdCents / 100).toFixed(2);
+  const providerReady = status.providerConfigured !== false; // treat undefined (old server) as ready
 
   async function startQuote(asset: "eth" | "usdc") {
     setError(null);
@@ -121,6 +122,17 @@ export function SearchCreditsPanel({
           ${priceUsd} per refresh · consumed only when postings are fetched
         </span>
       </div>
+
+      {!providerReady && (
+        <div className="mt-3 rounded-lg border border-[#7a5c2e] bg-[#2a2214] px-3 py-2 text-xs text-[#ffd28f]">
+          Set your TheirStack key in{" "}
+          <a href="/settings" className="underline">
+            Settings
+          </a>{" "}
+          before buying a search credit — without it the refresh will fail even
+          with a credit.
+        </div>
+      )}
 
       {!hasCredit && (
         <div className="mt-3 flex flex-wrap gap-4">

@@ -148,14 +148,16 @@ router.post("/postings/refresh", async (req: Request, res: Response) => {
   if (creditsEnforced()) {
     const check = await checkToken(req.header("x-credit-token") ?? undefined, "search");
     if (!check.ok) {
+      const providerMissing = !loadSettings().theirstackApiKey;
+      const providerHint = providerMissing ? " (TheirStack key also missing — add it in Settings)" : "";
       const why =
         check.reason === "missing"
-          ? "A search credit is required to refresh postings — buy or redeem one."
+          ? `A search credit is required to refresh postings — buy or redeem one.${providerHint}`
           : check.reason === "empty"
-            ? "This search credit has already been used — get a fresh one."
+            ? `This search credit has already been used — get a fresh one.${providerHint}`
             : check.reason === "wrong_kind"
-              ? "Your token is not a search credit — buy or redeem a search credit."
-              : "Your search credit token is invalid — redeem or buy a new one.";
+              ? `Your token is not a search credit — buy or redeem a search credit.${providerHint}`
+              : `Your search credit token is invalid — redeem or buy a new one.${providerHint}`;
       res.status(402).json({ ok: false, error: why, code: "credit_required", reason: check.reason });
       return;
     }

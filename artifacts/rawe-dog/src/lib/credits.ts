@@ -159,6 +159,8 @@ export function creditHeader(): Record<string, string> {
 export type CreditStatus = {
   ok: boolean;
   enforced: boolean;
+  /** True when a TheirStack API key is configured server-side. */
+  providerConfigured?: boolean;
   priceUsdCents: number;
   crypto: { available: boolean; network?: string; receivingAddress?: string };
   token: { valid: boolean; remaining: number; reason?: string } | null;
