@@ -253,7 +253,7 @@ export default function SettingsPage() {
         <div className="mb-4 flex items-center gap-2">
           <h2 className="mr-auto text-base font-semibold">AI &amp; LLM Settings</h2>
           <span className={`badge ${settings?.hasApiKey ? "badge-ok" : "badge-bad"}`}>
-            AI LLM key {settings?.hasApiKey ? "set" : "missing"}
+            {settings?.hasApiKey ? "AI LLM Active" : "AI LLM missing"}
           </span>
         </div>
 
@@ -405,7 +405,7 @@ export default function SettingsPage() {
         <div className="mb-4 flex items-center gap-2">
           <h2 className="mr-auto text-base font-semibold">TheirStack Job Postings API</h2>
           <span className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}>
-            API key {settings?.hasTheirstackKey ? "set" : "missing"}
+            {settings?.hasTheirstackKey ? "TheirStack API Active" : "TheirStack API missing"}
           </span>
         </div>
 
