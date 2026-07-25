@@ -5,3 +5,4 @@
 - [xAI model quirks](xai-model-quirks.md) — multi-agent grok models are blocked on chat completions; the SDK surfaces it as a bare "400 (no body)", hiding the real error.
 - [GitHub PUSH_REJECTED diagnosis](github-push-rejected.md) — bare PUSH_REJECTED is usually secret-scanning; scan unpushed commits for keys, and filter-branch removes purged files from disk too.
 - [Accountless credits pattern](accountless-credits-pattern.md) — user's toasteth monetization: bearer-token credits, gate off by default, spend-on-success requires an in-flight reservation + atomic store claims.
+- [req vs res close event](req-vs-res-close-event.md) — use res.on("close") not req.on("close") for SSE disconnect; req fires when express.json() finishes parsing the body, not when the client leaves.

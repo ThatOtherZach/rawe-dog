@@ -19,8 +19,12 @@ import { spendCredit } from "../lib/credits/store.js";
 
 const router = Router();
 
-/** Keep proxies from cutting the SSE stream during long silent model calls. */
-const HEARTBEAT_MS = 15_000;
+/** Keep proxies from cutting the SSE stream during long silent model calls.
+ *  HEARTBEAT_MS env var is a dev/test hook (e.g. shorten for e2e tests). */
+const HEARTBEAT_MS =
+  Number(process.env["HEARTBEAT_MS"]) > 0
+    ? Number(process.env["HEARTBEAT_MS"])
+    : 15_000;
 
 function errorStatus(message: string): number {
   return message.includes("API key") ||
@@ -168,7 +172,11 @@ router.post("/generate", async (req: Request, res: Response) => {
           abortController.abort();
         }
       };
-      req.on("close", onClientClose);
+      // Use res.on("close") to detect actual client disconnection.
+      // req.on("close") fires when the request body stream ends (after
+      // express.json() finishes parsing), which is too early — the client
+      // hasn't gone away, the body was simply fully consumed.
+      res.on("close", onClientClose);
 
       // Every emitted event is logged so a stalled run is traceable after
       // the fact: which stage started, which docs finished, where it died.
@@ -223,7 +231,7 @@ router.post("/generate", async (req: Request, res: Response) => {
           send({ type: "error", error: message });
         }
       } finally {
-        req.off("close", onClientClose);
+        res.off("close", onClientClose);
         clearInterval(heartbeat);
         runLog.info({ evt: "close", ms: Date.now() - t0 }, "generate stream closed");
         if (streamOpen()) {
