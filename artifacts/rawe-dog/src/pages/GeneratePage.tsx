@@ -198,12 +198,32 @@ export default function GeneratePage() {
   const [stallNote, setStallNote] = useState<string | null>(null);
   /** AbortController for the active streaming fetch — cancel closes the SSE connection. */
   const cancelRef = useRef<AbortController | null>(null);
+  /** Brief "Run cancelled" notice shown after the user aborts a run. */
+  const [cancelledNotice, setCancelledNotice] = useState(false);
+  const cancelNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearProgressTimer = () => {
     if (progressTimer.current) {
       clearInterval(progressTimer.current);
       progressTimer.current = null;
     }
+  };
+
+  const showCancelledNotice = () => {
+    if (cancelNoticeTimer.current) clearTimeout(cancelNoticeTimer.current);
+    setCancelledNotice(true);
+    cancelNoticeTimer.current = setTimeout(() => {
+      setCancelledNotice(false);
+      cancelNoticeTimer.current = null;
+    }, 6000);
+  };
+
+  const dismissCancelledNotice = () => {
+    if (cancelNoticeTimer.current) {
+      clearTimeout(cancelNoticeTimer.current);
+      cancelNoticeTimer.current = null;
+    }
+    setCancelledNotice(false);
   };
 
   const pulseToward = (from: number, cap: number) => {
@@ -304,6 +324,7 @@ export default function GeneratePage() {
     setStats(null);
     setCopied(false);
     draftsDone.current = 0;
+    dismissCancelledNotice();
   }
 
   const handleEvent = useCallback((ev: SseEvent) => {
@@ -573,6 +594,7 @@ export default function GeneratePage() {
       if (err instanceof Error && err.name === "AbortError") {
         setStage("idle");
         setError(null);
+        showCancelledNotice();
       } else {
         setStage("error");
         setError(err instanceof Error ? err.message : String(err));
@@ -598,6 +620,7 @@ export default function GeneratePage() {
       if (err instanceof Error && err.name === "AbortError") {
         setStage("idle");
         setError(null);
+        showCancelledNotice();
       } else {
         setStage("error");
         setError(err instanceof Error ? err.message : String(err));
@@ -934,6 +957,19 @@ export default function GeneratePage() {
         {stallNote && !error && (
           <div className="mt-4 rounded-lg border border-[#7a5c2e] bg-[#2a2214] px-3 py-2 text-sm text-[#ffd28f]">
             {stallNote}
+          </div>
+        )}
+
+        {cancelledNotice && (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[#0c0e13] px-3 py-2 text-sm text-[var(--muted)]">
+            <span>Run cancelled — nothing was billed.</span>
+            <button
+              className="shrink-0 text-xs opacity-60 hover:opacity-100"
+              onClick={dismissCancelledNotice}
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
           </div>
         )}
 
