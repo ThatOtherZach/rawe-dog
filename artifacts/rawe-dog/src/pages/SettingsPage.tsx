@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type PublicSettings = {
   hasApiKey: boolean;
@@ -33,6 +33,18 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Danger zone — wipe
+  const [wipeConfirmText, setWipeConfirmText] = useState("");
+  const [wipeBusy, setWipeBusy] = useState(false);
+  const [wipeResult, setWipeResult] = useState<{
+    allOk: boolean;
+    library: { ok: boolean; skipped?: boolean; error?: string };
+    postings: { ok: boolean; skipped?: boolean; error?: string };
+    settings: { ok: boolean; skipped?: boolean; error?: string };
+  } | null>(null);
+  const [wipeError, setWipeError] = useState<string | null>(null);
+  const wipeInputRef = useRef<HTMLInputElement>(null);
 
   const syncFromSettings = useCallback((data: PublicSettings) => {
     setSettings(data);
@@ -170,6 +182,30 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function wipeAllData() {
+    if (wipeConfirmText !== "delete my data") return;
+    setWipeBusy(true);
+    setWipeError(null);
+    setWipeResult(null);
+    try {
+      const res = await fetch("/api/wipe", { method: "DELETE" });
+      const data = await res.json() as {
+        allOk: boolean;
+        library: { ok: boolean; skipped?: boolean; error?: string };
+        postings: { ok: boolean; skipped?: boolean; error?: string };
+        settings: { ok: boolean; skipped?: boolean; error?: string };
+      };
+      setWipeResult(data);
+      setWipeConfirmText("");
+      // Refresh settings to reflect clean state
+      void refresh();
+    } catch (err) {
+      setWipeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setWipeBusy(false);
     }
   }
 
@@ -425,6 +461,122 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Danger zone */}
+      <section className="panel p-5 border-[var(--danger)] border">
+        <h2 className="mb-1 text-base font-semibold text-[var(--danger)]">Danger zone</h2>
+        <p className="mb-4 text-sm text-[var(--muted)]">
+          These actions are permanent and cannot be undone.
+        </p>
+
+        {wipeResult ? (
+          <div className="space-y-3">
+            <div
+              className={`rounded-lg border px-4 py-3 text-sm ${
+                wipeResult.allOk
+                  ? "border-[color-mix(in_srgb,var(--accent)_40%,var(--border))] bg-[#0d1a14] text-[var(--accent)]"
+                  : "border-[color-mix(in_srgb,var(--danger)_45%,var(--border))] bg-[#2a1414] text-[var(--danger)]"
+              }`}
+            >
+              <p className="mb-2 font-semibold">
+                {wipeResult.allOk ? "All data wiped successfully." : "Wipe completed with errors."}
+              </p>
+              <ul className="space-y-1 text-xs">
+                <li>
+                  Library files:{" "}
+                  {wipeResult.library.ok
+                    ? wipeResult.library.skipped
+                      ? "✓ already empty"
+                      : "✓ deleted"
+                    : `✗ error — ${wipeResult.library.error}`}
+                </li>
+                <li>
+                  Postings cache:{" "}
+                  {wipeResult.postings.ok
+                    ? wipeResult.postings.skipped
+                      ? "✓ already empty"
+                      : "✓ deleted"
+                    : `✗ error — ${wipeResult.postings.error}`}
+                </li>
+                <li>
+                  Saved settings:{" "}
+                  {wipeResult.settings.ok
+                    ? wipeResult.settings.skipped
+                      ? "✓ already empty"
+                      : "✓ deleted"
+                    : `✗ error — ${wipeResult.settings.error}`}
+                </li>
+              </ul>
+              {wipeResult.allOk && (
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  Your credits and credit tokens were not touched. Navigate to Generate or
+                  Postings to see the clean first-run state.
+                </p>
+              )}
+            </div>
+            <button
+              className="btn text-xs"
+              onClick={() => setWipeResult(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-[color-mix(in_srgb,var(--danger)_30%,var(--border))] bg-[#1a0f0f] p-4">
+              <h3 className="mb-1 text-sm font-semibold text-[var(--danger)]">Delete all my data</h3>
+              <p className="mb-3 text-xs text-[var(--muted)]">
+                Permanently deletes:
+              </p>
+              <ul className="mb-3 list-inside list-disc space-y-0.5 text-xs text-[var(--muted)]">
+                <li>All library files — Master Profile, experiences, templates</li>
+                <li>Postings cache and saved search filters</li>
+                <li>Saved settings — API key, models, custom endpoint</li>
+              </ul>
+              <p className="mb-3 text-xs text-[var(--muted)]">
+                <span className="font-semibold text-[var(--fg)]">Not deleted:</span> your credits
+                ledger and credit tokens — sales records belong to the operator and paid credits
+                must survive. Your credit token in localStorage is also untouched.
+              </p>
+              <label className="label text-xs">
+                Type{" "}
+                <code className="rounded bg-[#2a1414] px-1 py-0.5 font-mono text-[var(--danger)]">
+                  delete my data
+                </code>{" "}
+                to confirm
+              </label>
+              <input
+                ref={wipeInputRef}
+                className="input mb-3 font-mono text-sm"
+                type="text"
+                placeholder="delete my data"
+                value={wipeConfirmText}
+                onChange={(e) => setWipeConfirmText(e.target.value)}
+                disabled={wipeBusy}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              {wipeError && (
+                <div className="mb-3 rounded-lg border border-[color-mix(in_srgb,var(--danger)_45%,var(--border))] bg-[#2a1414] px-3 py-2 text-sm text-[var(--danger)]">
+                  {wipeError}
+                </div>
+              )}
+              <button
+                className="btn text-sm"
+                style={{
+                  background: wipeConfirmText === "delete my data" ? "var(--danger)" : undefined,
+                  color: wipeConfirmText === "delete my data" ? "#fff" : undefined,
+                  opacity: wipeConfirmText === "delete my data" ? 1 : 0.4,
+                  cursor: wipeConfirmText === "delete my data" ? "pointer" : "not-allowed",
+                }}
+                onClick={() => void wipeAllData()}
+                disabled={wipeBusy || wipeConfirmText !== "delete my data"}
+              >
+                {wipeBusy ? "Wiping…" : "Delete all my data"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
