@@ -1,6 +1,6 @@
 /**
- * Credit checkout + redemption — the toasteth pattern with the generate
- * pipeline standing in for the toaster relay. No accounts anywhere:
+ * Credit checkout + redemption — the toasteth pattern with the postings
+ * refresh standing in for the toaster relay. No accounts anywhere:
  *
  *   quote  → we hand out our receiving address + a unique exact amount
  *   (user pays on Base from any wallet, no connect, no signature)
@@ -8,14 +8,15 @@
  *            issues a signed bearer token (localStorage on the client)
  *   redeem → promo codes mint the same tokens (owner mints via admin key)
  *
- * The generate route consumes 1 credit per SUCCESSFUL kit run.
+ * The postings/refresh route consumes 1 search credit per SUCCESSFUL fetch.
+ * Kit generation is FREE — no credit check on /generate.
  */
 
 import { Router, type Request, type Response } from "express";
 import {
   getNetworkConfig,
   getReceivingAddress,
-  getCreditPriceCents,
+  getSearchCreditPriceCents,
   getQuoteTtlMs,
   readEthUsd,
   usdcAtomicAmount,
@@ -54,7 +55,7 @@ router.get("/credits/status", async (req: Request, res: Response) => {
     const tokenHeader = req.header("x-credit-token") ?? undefined;
     let token: { valid: boolean; remaining: number; reason?: string } | null = null;
     if (tokenHeader) {
-      const check = await checkToken(tokenHeader);
+      const check = await checkToken(tokenHeader, "search");
       token = check.ok
         ? { valid: true, remaining: check.token.remaining }
         : { valid: false, remaining: 0, reason: check.reason };
@@ -62,7 +63,7 @@ router.get("/credits/status", async (req: Request, res: Response) => {
     res.json({
       ok: true,
       enforced,
-      priceUsdCents: getCreditPriceCents(),
+      priceUsdCents: getSearchCreditPriceCents(),
       crypto: address
         ? { available: true, network: cfg.network, receivingAddress: address }
         : { available: false },
@@ -87,8 +88,7 @@ router.post("/credits/quote", async (req: Request, res: Response) => {
       return;
     }
     const cfg = getNetworkConfig();
-    const priceCents = getCreditPriceCents();
-
+    const priceCents = getSearchCreditPriceCents();
     const base =
       asset === "usdc"
         ? usdcAtomicAmount(priceCents, cfg.usdcDecimals)
@@ -230,7 +230,7 @@ router.post("/credits/redeem", async (req: Request, res: Response) => {
       res.status(422).json({ ok: false, error: message });
       return;
     }
-    const record = await issueToken({ source: "code", credits: result.code.credits, code: result.code.code });
+    const record = await issueToken({ source: "code", kind: "search", credits: result.code.credits, code: result.code.code });
     await recordSale({
       at: Date.now(),
       source: "code",

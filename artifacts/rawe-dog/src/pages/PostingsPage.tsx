@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
+import { SearchCreditsPanel } from "../components/SearchCreditsPanel";
+import { searchCreditHeader } from "../lib/credits";
 
 const SENIORITY_OPTIONS = [
   { value: "junior", label: "Junior" },
@@ -384,6 +386,9 @@ export default function PostingsPage() {
   const [patchingId, setPatchingId] = useState<string | null>(null);
   const [libraryBannerDismissed, setLibraryBannerDismissed] = useState(false);
 
+  // Search credits panel — bump to force a status re-fetch (e.g. after buying)
+  const [creditsBump, setCreditsBump] = useState(0);
+
   useEffect(() => {
     if (!refreshing) {
       setRefreshPct(0);
@@ -517,8 +522,21 @@ export default function PostingsPage() {
     setRefreshing(true);
     clearNotices();
     try {
-      const res = await fetch("/api/postings/refresh", { method: "POST" });
+      const res = await fetch("/api/postings/refresh", {
+        method: "POST",
+        headers: { ...searchCreditHeader() },
+      });
       const data = await res.json();
+      if (res.status === 402) {
+        const code = (data as { code?: string }).code;
+        if (code === "credit_required") {
+          // Force the search-credits panel to re-fetch status so the balance
+          // badge and buy form appear immediately.
+          setCreditsBump((n) => n + 1);
+          setError((data as { error?: string }).error || "A search credit is required to refresh postings.");
+          return;
+        }
+      }
       if (!res.ok || !data.ok) {
         throw new Error(
           (data as { error?: string }).error || `Refresh failed (${res.status})`
@@ -898,6 +916,12 @@ export default function PostingsPage() {
             </div>
           </div>
         )}
+
+        {/* Search credits panel — invisible when enforcement is off; appears automatically when on */}
+        <SearchCreditsPanel
+          refreshKey={creditsBump}
+          onChanged={() => setCreditsBump((n) => n + 1)}
+        />
 
         <div className="flex flex-wrap items-center gap-2">
           <button

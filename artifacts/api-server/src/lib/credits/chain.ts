@@ -85,12 +85,20 @@ export function getRequiredConfirmations(): number {
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 2;
 }
 
-/** Price of ONE generation credit in USD cents (default $5.00). */
+/** Price of ONE generation credit in USD cents (default $5.00). Legacy; kept for any admin tooling that reads it. */
 export function getCreditPriceCents(): number {
   const raw = process.env["RAWEDOG_CREDIT_PRICE_USD"]?.trim();
   const n = raw ? Number(raw) : NaN;
   if (Number.isFinite(n) && n > 0) return Math.round(n * 100);
   return 500;
+}
+
+/** Price of ONE search credit in USD cents (default $1.00). */
+export function getSearchCreditPriceCents(): number {
+  const raw = process.env["RAWEDOG_SEARCH_CREDIT_PRICE_USD"]?.trim();
+  const n = raw ? Number(raw) : NaN;
+  if (Number.isFinite(n) && n > 0) return Math.round(n * 100);
+  return 100;
 }
 
 /** How long a quote stays claimable (default 24h — $5 of ETH drift is ours to eat). */

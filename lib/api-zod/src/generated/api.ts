@@ -305,9 +305,13 @@ export const GetPostingsResponse = zod.object({
 
 
 /**
- * Calls TheirStack with the current filters, dedupes against existing postings, scores new ones against the Master Profile, and returns the updated state. Returns 409 if a refresh is already in flight (concurrent refreshes are rejected, not queued, to avoid burning API credits).
+ * Calls TheirStack with the current filters, dedupes against existing postings, scores new ones against the Master Profile, and returns the updated state. When `RAWEDOG_CREDITS_ENFORCED=true`, requires a search-kind bearer token in the `X-Credit-Token` header; the credit is consumed only after postings are successfully fetched and saved. Returns 409 if a refresh is already in flight (concurrent refreshes are rejected, not queued, to avoid burning API credits).
  * @summary Fetch and score new jobs from TheirStack
  */
+export const RefreshPostingsHeader = zod.object({
+  "X-Credit-Token": zod.string().optional().describe('HMAC-signed search credit token (required when RAWEDOG_CREDITS_ENFORCED=true). Obtain via POST \/credits\/verify or POST \/credits\/redeem.\n')
+})
+
 export const refreshPostingsResponsePostingsItemScoreMin = 0;
 export const refreshPostingsResponsePostingsItemScoreMax = 100;
 

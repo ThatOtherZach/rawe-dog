@@ -437,6 +437,39 @@ slot: string;
 id: string;
 };
 
+/**
+ * Present when a search credit is needed
+ */
+export type RefreshPostings402Code = typeof RefreshPostings402Code[keyof typeof RefreshPostings402Code];
+
+
+export const RefreshPostings402Code = {
+  credit_required: 'credit_required',
+} as const;
+
+/**
+ * Why the credit check failed
+ */
+export type RefreshPostings402Reason = typeof RefreshPostings402Reason[keyof typeof RefreshPostings402Reason];
+
+
+export const RefreshPostings402Reason = {
+  missing: 'missing',
+  empty: 'empty',
+  wrong_kind: 'wrong_kind',
+  malformed: 'malformed',
+  bad_signature: 'bad_signature',
+  unknown: 'unknown',
+  in_use: 'in_use',
+} as const;
+
+export type RefreshPostings402 = ErrorResponse & {
+  /** Present when a search credit is needed */
+  code?: RefreshPostings402Code;
+  /** Why the credit check failed */
+  reason?: RefreshPostings402Reason;
+};
+
 export type DerivePostingFilters200 = PostingsState & {
   /** LLM explanation of why these filters were chosen */
   rationale?: string;

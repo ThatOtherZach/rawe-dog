@@ -21,6 +21,9 @@ import { briefIsUsable } from "../lib/jobs/brief.js";
 import { TheirStackProvider } from "../lib/jobs/theirstack.js";
 import { deriveFiltersFromProfile, scorePostings } from "../lib/jobs/match.js";
 import { loadMasterProfile, loadAllExperiences } from "../lib/context-pack.js";
+import { checkToken, creditsEnforced, reserveCredit, releaseCredit } from "../lib/credits/tokens.js";
+import { spendCredit } from "../lib/credits/store.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -134,8 +137,48 @@ router.put("/postings/filters", (req: Request, res: Response) => {
  */
 let refreshInFlight = false;
 
-router.post("/postings/refresh", async (_req: Request, res: Response) => {
+const refreshLog = logger.child({ route: "postings-refresh" });
+
+router.post("/postings/refresh", async (req: Request, res: Response) => {
+  // ── Search credit gate ──────────────────────────────────────────────────
+  // Check runs before API-key/filters validation so a misconfigured server
+  // can never burn a credit. Reserve up front; spend only after postings
+  // persist; release (without spending) on any failure path.
+  let reservedSearchTokenId: string | null = null;
+  if (creditsEnforced()) {
+    const check = await checkToken(req.header("x-credit-token") ?? undefined, "search");
+    if (!check.ok) {
+      const why =
+        check.reason === "missing"
+          ? "A search credit is required to refresh postings — buy or redeem one."
+          : check.reason === "empty"
+            ? "This search credit has already been used — get a fresh one."
+            : check.reason === "wrong_kind"
+              ? "Your token is not a search credit — buy or redeem a search credit."
+              : "Your search credit token is invalid — redeem or buy a new one.";
+      res.status(402).json({ ok: false, error: why, code: "credit_required", reason: check.reason });
+      return;
+    }
+    if (!reserveCredit(check.token.id, check.token.remaining)) {
+      res.status(402).json({
+        ok: false,
+        error: "Your search credit is already funding a refresh in progress — wait for it to finish.",
+        code: "credit_required",
+        reason: "in_use",
+      });
+      return;
+    }
+    reservedSearchTokenId = check.token.id;
+  }
+  // ───────────────────────────────────────────────────────────────────────
+
   if (refreshInFlight) {
+    // Release the reservation before returning — the in-flight guard means
+    // no postings will be fetched, so no credit should be held.
+    if (reservedSearchTokenId) {
+      releaseCredit(reservedSearchTokenId);
+      reservedSearchTokenId = null;
+    }
     res.status(409).json({
       ok: false,
       error: "A refresh is already running — wait for it to finish.",
@@ -165,6 +208,20 @@ router.post("/postings/refresh", async (_req: Request, res: Response) => {
     const provider = new TheirStackProvider(settings.theirstackApiKey);
     const { postings } = await provider.search(file.filters);
     const { added } = upsertPostings(postings);
+
+    // Postings persisted — consume the search credit now. Scoring is
+    // best-effort; a scoring warning still spends because results were
+    // delivered. Provider/quota/network errors throw before here so they
+    // never reach this point.
+    if (reservedSearchTokenId) {
+      const spent = await spendCredit(reservedSearchTokenId);
+      if (spent) {
+        refreshLog.info({ evt: "credit_spent", remaining: spent.remaining }, "search credit consumed");
+      } else {
+        refreshLog.warn({ evt: "credit_spend_failed" }, "search credit spend failed after successful fetch");
+      }
+      reservedSearchTokenId = null; // Mark as spent so the finally block doesn't release it
+    }
 
     // Score anything without a fit yet (new + previously failed) so the
     // cache self-heals; provider credits are NOT spent on re-scoring.
@@ -209,6 +266,11 @@ router.post("/postings/refresh", async (_req: Request, res: Response) => {
     res.status(500).json({ ok: false, error: message });
   } finally {
     refreshInFlight = false;
+    // Release reservation if we didn't spend (failure path: provider error,
+    // filters missing, API key missing, etc.). Already null when spent.
+    if (reservedSearchTokenId) {
+      releaseCredit(reservedSearchTokenId);
+    }
   }
 });
 

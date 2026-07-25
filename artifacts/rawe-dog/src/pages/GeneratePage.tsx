@@ -1,8 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MarkdownView } from "../components/MarkdownView";
-import { CreditsPanel } from "../components/CreditsPanel";
-import { creditHeader } from "../lib/credits";
 
 type Health = {
   settings: { hasApiKey: boolean; model: string };
@@ -437,14 +435,6 @@ export default function GeneratePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Credits gate (server-enforced): re-check the balance whenever a run
-  // reaches a terminal state — success consumes a credit, and a 402 means
-  // the panel should surface the buy/redeem UI.
-  const [creditsBump, setCreditsBump] = useState(0);
-  useEffect(() => {
-    if (stage === "done" || stage === "error") setCreditsBump((n) => n + 1);
-  }, [stage]);
-
   function cancelRun() {
     if (cancelRef.current && !cancelRef.current.signal.aborted) {
       cancelRef.current.abort();
@@ -457,7 +447,7 @@ export default function GeneratePage() {
 
     const res = await fetch("/api/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...creditHeader() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: ac.signal,
     });
@@ -553,7 +543,7 @@ export default function GeneratePage() {
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...creditHeader() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "pass1",
           ...requestBase(),
@@ -770,10 +760,8 @@ export default function GeneratePage() {
           </div>
         )}
 
-        <CreditsPanel
-          refreshKey={creditsBump}
-          onChanged={() => setCreditsBump((n) => n + 1)}
-        />
+        {/* Kit generation is free — no credits panel here. Search credits
+            (for postings refresh) are purchased on the Postings page. */}
 
         <div className="grid items-stretch gap-4 md:grid-cols-3">
           <div className="flex h-full min-h-[20rem] flex-col md:col-span-2">
@@ -833,7 +821,7 @@ export default function GeneratePage() {
                       )}
                       <p className="mb-2.5 text-xs opacity-70">
                         Every signal has a legitimate explanation — you decide.
-                        Generating a kit spends a credit; confirm you want to proceed.
+                        Every signal has a legitimate explanation — you decide. Confirm you want to proceed.
                       </p>
                       <button
                         className="btn"

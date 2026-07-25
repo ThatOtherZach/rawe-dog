@@ -36,10 +36,18 @@ export function encodeToken(id: string): string {
 
 export type TokenCheck =
   | { ok: true; token: CreditToken }
-  | { ok: false; reason: "missing" | "malformed" | "bad_signature" | "unknown" | "empty" };
+  | { ok: false; reason: "missing" | "malformed" | "bad_signature" | "unknown" | "empty" | "wrong_kind" };
 
-/** Verify signature + resolve the ledger row. Does NOT spend. */
-export async function checkToken(raw: string | undefined): Promise<TokenCheck> {
+/**
+ * Verify signature + resolve the ledger row. Does NOT spend.
+ *
+ * Pass `requiredKind: "search"` to enforce that the token is a search credit.
+ * Tokens with no kind field (legacy kit tokens) fail the kind check.
+ */
+export async function checkToken(
+  raw: string | undefined,
+  requiredKind?: "search",
+): Promise<TokenCheck> {
   if (!raw || !raw.trim()) return { ok: false, reason: "missing" };
   const parts = raw.trim().split(".");
   if (parts.length !== 3 || parts[0] !== PREFIX) return { ok: false, reason: "malformed" };
@@ -58,6 +66,7 @@ export async function checkToken(raw: string | undefined): Promise<TokenCheck> {
   const token = await getToken(id);
   if (!token) return { ok: false, reason: "unknown" };
   if (token.remaining < 1) return { ok: false, reason: "empty" };
+  if (requiredKind && token.kind !== requiredKind) return { ok: false, reason: "wrong_kind" };
   return { ok: true, token };
 }
 

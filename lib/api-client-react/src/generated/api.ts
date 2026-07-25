@@ -40,6 +40,7 @@ import type {
   PostingDetail,
   PostingsState,
   PublicSettings,
+  RefreshPostings402,
   SettingsActionBody,
   UpdatePostingFiltersBody,
   UpdatePostingStatusBody,
@@ -932,7 +933,7 @@ export const getRefreshPostingsUrl = () => {
 }
 
 /**
- * Calls TheirStack with the current filters, dedupes against existing postings, scores new ones against the Master Profile, and returns the updated state. Returns 409 if a refresh is already in flight (concurrent refreshes are rejected, not queued, to avoid burning API credits).
+ * Calls TheirStack with the current filters, dedupes against existing postings, scores new ones against the Master Profile, and returns the updated state. When `RAWEDOG_CREDITS_ENFORCED=true`, requires a search-kind bearer token in the `X-Credit-Token` header; the credit is consumed only after postings are successfully fetched and saved. Returns 409 if a refresh is already in flight (concurrent refreshes are rejected, not queued, to avoid burning API credits).
  * @summary Fetch and score new jobs from TheirStack
  */
 export const refreshPostings = async ( options?: RequestInit): Promise<PostingsState> => {
@@ -950,7 +951,7 @@ export const refreshPostings = async ( options?: RequestInit): Promise<PostingsS
 
 
 
-export const getRefreshPostingsMutationOptions = <TError = ErrorType<ErrorResponse>,
+export const getRefreshPostingsMutationOptions = <TError = ErrorType<ErrorResponse | RefreshPostings402>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshPostings>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof refreshPostings>>, TError,void, TContext> => {
 
@@ -979,12 +980,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RefreshPostingsMutationResult = NonNullable<Awaited<ReturnType<typeof refreshPostings>>>
 
-    export type RefreshPostingsMutationError = ErrorType<ErrorResponse>
+    export type RefreshPostingsMutationError = ErrorType<ErrorResponse | RefreshPostings402>
 
     /**
  * @summary Fetch and score new jobs from TheirStack
  */
-export const useRefreshPostings = <TError = ErrorType<ErrorResponse>,
+export const useRefreshPostings = <TError = ErrorType<ErrorResponse | RefreshPostings402>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshPostings>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof refreshPostings>>,

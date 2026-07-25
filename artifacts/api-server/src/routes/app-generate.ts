@@ -1,21 +1,11 @@
 import { Router, type Request, type Response } from "express";
-import {
-  generateApplicationKit,
-  runSelectionOnly,
-  runKitFromSelection,
-  type GenerateInput,
-  type GenerateProgressEvent,
-} from "../lib/generate.js";
-import type { Pass1Selection } from "../lib/parse-kit.js";
+import { generateApplicationKit, runSelectionOnly, runKitFromSelection, type GenerateInput } from "../lib/generate.js";
 import { getStoredPosting, setPostingStatus } from "../lib/jobs/store.js";
-import {
-  briefIsUsable,
-  renderBriefCompact,
-  renderBriefForDrafting,
-} from "../lib/jobs/brief.js";
+import { renderBriefForDrafting, renderBriefCompact } from "../lib/jobs/brief.js";
+import { briefIsUsable } from "../lib/jobs/brief.js";
 import { logger } from "../lib/logger.js";
-import { checkToken, creditsEnforced, reserveCredit, releaseCredit } from "../lib/credits/tokens.js";
-import { spendCredit } from "../lib/credits/store.js";
+import type { Pass1Selection } from "../lib/parse-kit.js";
+import type { GenerateProgressEvent } from "../lib/generate.js";
 
 const router = Router();
 
@@ -38,10 +28,11 @@ function errorStatus(message: string): number {
 /** Raw descriptions can be huge; cap the no-brief fallback. */
 const RAW_POSTING_CAP = 12000;
 
+/**
+ * Kit generation is FREE — no credit check. Credits gate the postings
+ * search (POST /postings/refresh), not kit generation.
+ */
 router.post("/generate", async (req: Request, res: Response) => {
-  // Set when this run holds an in-flight credit reservation (consuming modes
-  // only) — always released in the finally below.
-  let reservedTokenId: string | null = null;
   try {
     const body = req.body as {
       jobPosting?: string;
@@ -56,52 +47,6 @@ router.post("/generate", async (req: Request, res: Response) => {
     };
 
     const mode = body.mode || "full";
-
-    // Credit gate (the toasteth pattern — the generate pipeline is the
-    // toaster, a bearer token is the paid unlock). When armed, every run
-    // needs a live token; ONE credit is consumed only when a kit completes
-    // successfully. Pass 1 selection alone never consumes, and failed runs
-    // never consume.
-    let creditTokenId: string | null = null;
-    if (creditsEnforced()) {
-      const check = await checkToken(req.header("x-credit-token") ?? undefined);
-      if (!check.ok) {
-        const why =
-          check.reason === "missing"
-            ? "A generation credit is required to run the kit."
-            : check.reason === "empty"
-              ? "This credit has already been used — get a fresh one."
-              : "Your credit token is invalid — redeem or buy a new credit.";
-        res.status(402).json({ ok: false, error: why, code: "credit_required", reason: check.reason });
-        return;
-      }
-      creditTokenId = check.token.id;
-      // Consuming modes reserve their credit up front so N parallel runs on a
-      // 1-credit token can't all deliver kits (spend happens on success, so
-      // validation alone isn't enough). Pass 1 never consumes → no reserve.
-      if (mode !== "pass1") {
-        if (!reserveCredit(creditTokenId, check.token.remaining)) {
-          res.status(402).json({
-            ok: false,
-            error: "Your credit is already funding a run in progress — wait for it to finish.",
-            code: "credit_required",
-            reason: "in_use",
-          });
-          return;
-        }
-        reservedTokenId = creditTokenId;
-      }
-    }
-    const consumeCredit = async () => {
-      if (!creditTokenId) return;
-      const spent = await spendCredit(creditTokenId);
-      if (spent) {
-        logger.info({ route: "generate", evt: "credit_spent", remaining: spent.remaining }, "credit consumed");
-      } else {
-        // Run already delivered — log loudly rather than clawing it back.
-        logger.warn({ route: "generate", evt: "credit_spend_failed" }, "credit spend failed after successful run");
-      }
-    };
 
     const input: GenerateInput = {
       jobPosting: body.jobPosting || "",
@@ -218,11 +163,6 @@ router.post("/generate", async (req: Request, res: Response) => {
         if (body.postingId) {
           setPostingStatus(String(body.postingId), "kit_generated");
         }
-        // Don't spend a credit if the client disconnected or cancelled —
-        // the pipeline may have finished locally but nobody will see the kit.
-        if (!abortController.signal.aborted) {
-          await consumeCredit();
-        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         // Suppress abort errors — the client already left; no point writing
@@ -257,7 +197,6 @@ router.post("/generate", async (req: Request, res: Response) => {
       if (body.postingId) {
         setPostingStatus(String(body.postingId), "kit_generated");
       }
-      await consumeCredit();
       res.json({ ok: true, ...result });
       return;
     }
@@ -267,15 +206,10 @@ router.post("/generate", async (req: Request, res: Response) => {
     if (body.postingId) {
       setPostingStatus(String(body.postingId), "kit_generated");
     }
-    await consumeCredit();
     res.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(errorStatus(message)).json({ ok: false, error: message });
-  } finally {
-    // Runs on every exit path, including early returns and stream mode
-    // (the handler awaits the full stream run before returning).
-    if (reservedTokenId) releaseCredit(reservedTokenId);
   }
 });
 

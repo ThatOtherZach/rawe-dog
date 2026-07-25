@@ -31,6 +31,12 @@ export interface CreditQuote {
 export interface CreditToken {
   id: string;
   source: "crypto" | "code";
+  /**
+   * Product kind. Only "search" exists now that kits are free. Absent on
+   * legacy tokens minted before this field was added — those are not
+   * accepted by the search gate (kind-check is strict on the refresh route).
+   */
+  kind?: "search";
   credits: number;
   remaining: number;
   issuedAt: number;
@@ -191,7 +197,11 @@ export type ClaimResult =
  * (The on-chain read happens before this, outside the lock; this is the
  * authoritative settle step.)
  */
-export function claimQuoteAndIssueToken(quoteId: string, txHashRaw: string): Promise<ClaimResult> {
+export function claimQuoteAndIssueToken(
+  quoteId: string,
+  txHashRaw: string,
+  kind: "search" = "search",
+): Promise<ClaimResult> {
   const txHash = txHashRaw.toLowerCase();
   return withStore((data): ClaimResult => {
     const quote = data.quotes.find((q) => q.id === quoteId);
@@ -203,6 +213,7 @@ export function claimQuoteAndIssueToken(quoteId: string, txHashRaw: string): Pro
     const token: CreditToken = {
       id: randomUUID(),
       source: "crypto",
+      kind,
       credits: 1,
       remaining: 1,
       issuedAt: Date.now(),

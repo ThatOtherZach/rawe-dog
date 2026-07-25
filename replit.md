@@ -50,13 +50,16 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 - The list endpoint returns status counts (`newCount`, `kitGeneratedCount`, `appliedCount`, `dismissedCount`) for summary display.
 - Dismissed postings are hidden by default in the UI with a toggle to reveal them.
 
-### Pay-per-run credits (the toasteth pattern)
+### Pay-per-search credits (the toasteth pattern)
+- **Two lanes**: kit generation is **free** (no credit check on `/api/generate`); a $1 search credit is required to refresh postings via `/api/postings/refresh` (when `RAWEDOG_CREDITS_ENFORCED=true`). Paying gets you speed + targeting (pre-scored postings), not gated output quality.
 - **Accountless**: no user accounts, no DB. A credit is an HMAC bearer token (`rdc1.<payload>.<sig>`, signed with `SESSION_SECRET`) held in browser localStorage and sent as `X-Credit-Token`; the ledger row in `data/credits/credits.json` is the source of truth (tokens, quotes, codes, CAD sales rows). Flat-file store with a promise-chain mutex + atomic tmp/rename writes.
-- **Gate off by default**: `/api/generate` is free unless `RAWEDOG_CREDITS_ENFORCED=true`. When armed, every mode needs a valid token; **1 credit is consumed only when a kit completes successfully** (pass1 selection never consumes; failed runs never consume — crash favors the buyer).
-- **Concurrency safety**: consuming modes take an in-memory in-flight reservation at admission (one credit funds one run at a time → parallel-run bypass returns 402 `in_use`); quote amount allocation and payment-claim + token-mint are each single atomic store transactions (no double-mint from parallel verifies, no duplicate quote amounts).
-- **Buying**: no wallet-connect. Server quotes a unique exact amount (base price + random atomic tail) on Base (ETH or USDC) to a fixed receiving address; buyer sends from any wallet, pastes the tx hash; server verifies on-chain via viem (exact amount, N confirmations) and mints the token. Quotes live `RAWEDOG_QUOTE_TTL_HOURS` (24h default).
+- **Token kind**: all newly minted tokens carry `kind: "search"`. The refresh gate requires `kind === "search"` — legacy tokens without a kind field are not accepted by the search gate.
+- **Gate off by default**: `/api/postings/refresh` is free unless `RAWEDOG_CREDITS_ENFORCED=true`. When armed, the refresh requires a valid search-kind bearer token; **1 credit is consumed only after postings are fetched and saved** (provider/quota/network failures never burn a credit; scoring failures after a successful fetch still spend because results were delivered).
+- **Concurrency safety**: the refresh gate takes an in-memory in-flight reservation at admission (one credit funds one refresh at a time → parallel-refresh bypass returns 402 `in_use`); quote amount allocation and payment-claim + token-mint are each single atomic store transactions (no double-mint from parallel verifies, no duplicate quote amounts).
+- **Buying**: no wallet-connect. Server quotes a unique exact amount (base price + random atomic tail) on Base (ETH or USDC) to a fixed receiving address; buyer sends from any wallet, pastes the tx hash; server verifies on-chain via viem (exact amount, N confirmations) and mints the token. Price: `RAWEDOG_SEARCH_CREDIT_PRICE_USD` (default $1). Quotes live `RAWEDOG_QUOTE_TTL_HOURS` (24h default).
 - **Codes**: admin mints `RAWE-XXXXXXXXXX` codes (`POST /api/credits/admin/mint`, `x-admin-key` header) with configurable credits/redemptions; buyers redeem for the same tokens. Ledger at `GET /api/credits/admin/ledger`.
 - **CAD sales rows**: each crypto sale records gross CAD (Bank of Canada FX, `RAWEDOG_USD_CAD_FALLBACK_RATE` fallback) with BC 5% GST / 7% PST backed out; FX failure is non-fatal (null fields).
+- **Frontend**: Postings page renders a `SearchCreditsPanel` (separate localStorage key `rawe.search.token` / `rawe.search.quote` from the legacy kit key). Panel is invisible when enforcement is off. A 402 on refresh bumps the panel to re-fetch status and shows an error.
 
 ## API routes (key ones)
 
@@ -87,14 +90,15 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 | `SESSION_SECRET` | Yes | Express session signing |
 | `XAI_BASE_URL` | Dev/test | Override xAI endpoint (e.g. local mock server for e2e tests) |
 | `THEIRSTACK_BASE_URL` | Dev/test | Override TheirStack endpoint (e.g. local mock server) |
-| `RAWEDOG_CREDITS_ENFORCED` | No | `true` arms the pay-per-run credit gate (off by default) |
+| `RAWEDOG_CREDITS_ENFORCED` | No | `true` arms the search credit gate on `POST /api/postings/refresh` (off by default) |
 | `RAWEDOG_CRYPTO_RECEIVING_ADDRESS` | To sell | Fixed address payments are sent to (crypto checkout closed without it) |
 | `RAWEDOG_ADMIN_KEY` | To mint | Admin key for minting codes / reading the ledger |
 | `RAWEDOG_CRYPTO_NETWORK` | No | `base` (default) or `base-sepolia` |
 | `RAWEDOG_CRYPTO_RPC_URL` | No | RPC override (defaults to public RPC for the network) |
 | `RAWEDOG_CRYPTO_ETH_USD_FEED` | No | Chainlink ETH/USD feed override |
 | `RAWEDOG_CRYPTO_CONFIRMATIONS` | No | Confirmations required before granting (default 2) |
-| `RAWEDOG_CREDIT_PRICE_USD` | No | Price per credit in dollars (default 5) |
+| `RAWEDOG_SEARCH_CREDIT_PRICE_USD` | No | Price per search credit in dollars (default 1) |
+| `RAWEDOG_CREDIT_PRICE_USD` | No | Legacy — price per kit credit (unused; kits are now free) |
 | `RAWEDOG_QUOTE_TTL_HOURS` | No | How long a quoted amount stays claimable (default 24) |
 | `RAWEDOG_USD_CAD_FALLBACK_RATE` | No | FX fallback when Bank of Canada API is unreachable |
 
