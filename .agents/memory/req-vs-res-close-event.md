@@ -22,6 +22,3 @@ res.on("close", onClientClose);
 
 ## Discovered
 Caught during e2e stream testing: the generate pipeline aborted immediately after emitting the pass1 status event (before any xAI call was made), because `express.json()` finishing triggered the `req.on("close")` handler, which fired `abortController.abort()`.
-
-## Affected file
-`artifacts/api-server/src/routes/app-generate.ts` — fixed.
