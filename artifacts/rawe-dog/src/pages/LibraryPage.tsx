@@ -286,7 +286,7 @@ export default function LibraryPage() {
                     </label>
                     {file && (
                       <button
-                        className="btn"
+                        className="btn btn-danger"
                         disabled={busy}
                         onClick={() => void onDelete(slot, file.id)}
                       >
@@ -420,7 +420,7 @@ export default function LibraryPage() {
                           Download
                         </a>
                         <button
-                          className="btn"
+                          className="btn btn-danger"
                           disabled={busySlot === slot.slot}
                           onClick={() => void onDelete(slot.slot, f.id)}
                         >
