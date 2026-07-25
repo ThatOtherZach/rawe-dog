@@ -175,6 +175,101 @@ function workModeLabel(p: PostingSummary): string {
   return "";
 }
 
+const RANK_LABELS = [
+  "Best match",
+  "Second best",
+  "You could do this",
+  "Eh, maybe?",
+] as const;
+
+/** Derive the top-four picks: scored, actionable (not applied/dismissed), in existing rank order. */
+export function pickTopFour(postings: PostingSummary[]): PostingSummary[] {
+  return postings
+    .filter(
+      (p) =>
+        p.score !== null &&
+        p.status !== "applied" &&
+        p.status !== "dismissed"
+    )
+    .slice(0, 4);
+}
+
+function DigestStrip({
+  picks,
+  patchingId,
+  onCardClick,
+  onPatch,
+}: {
+  picks: PostingSummary[];
+  patchingId: string | null;
+  onCardClick: (id: string) => void;
+  onPatch: (id: string, status: PostingStatus) => void;
+}) {
+  if (picks.length === 0) return null;
+  return (
+    <section className="panel p-5">
+      <h2 className="mb-3 text-base font-semibold">Today's picks</h2>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {picks.map((p, i) => {
+          const label = RANK_LABELS[i];
+          const isPatching = patchingId === p.id;
+          // Truncate rationale to one line (~120 chars)
+          const hook =
+            p.rationale && p.rationale.length > 120
+              ? p.rationale.slice(0, 117).trimEnd() + "…"
+              : p.rationale;
+          return (
+            <div
+              key={p.id}
+              className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[#0c0e13] p-4"
+            >
+              {/* Rank label */}
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                {label}
+              </span>
+              {/* Score + title */}
+              <div className="flex flex-wrap items-start gap-2">
+                <ScoreChip score={p.score} />
+              </div>
+              <button
+                className="text-left text-sm font-semibold text-[var(--text)] hover:underline"
+                onClick={() => onCardClick(p.id)}
+                title="Expand in list below"
+              >
+                {p.title}
+              </button>
+              <p className="text-xs text-[var(--muted)]">{p.company}</p>
+              {/* Rationale hook */}
+              {hook && (
+                <p className="flex-1 text-xs leading-relaxed text-[var(--muted)]">
+                  {hook}
+                </p>
+              )}
+              {/* Actions */}
+              <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
+                <button
+                  className="btn !px-2 !py-1 text-xs text-[var(--muted)]"
+                  disabled={isPatching}
+                  onClick={() => onPatch(p.id, "dismissed")}
+                  title="Dismiss"
+                >
+                  {isPatching ? "…" : "Dismiss"}
+                </button>
+                <Link
+                  href={`/?posting=${encodeURIComponent(p.id)}`}
+                  className="btn btn-primary !px-2.5 !py-1 text-xs"
+                >
+                  Generate kit
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function PostingsPage() {
   const [state, setState] = useState<PostingsState | null>(null);
   const [editing, setEditing] = useState(false);
@@ -422,6 +517,19 @@ export default function PostingsPage() {
   const showEditor = editing || (state !== null && !filters);
   const scoredCount = allPostings.filter((p) => p.score !== null).length;
   const counts = state?.statusCounts;
+  const picks = pickTopFour(allPostings);
+
+  function handleDigestCardClick(id: string) {
+    // Only expand (never collapse) — toggleExpand collapses when already open
+    if (expandedId !== id) {
+      void toggleExpand(id);
+    }
+    // Scroll to the row (use setTimeout so the expand render completes first)
+    setTimeout(() => {
+      const el = document.getElementById(`posting-${id}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
 
   return (
     <div className="space-y-6">
@@ -794,6 +902,15 @@ export default function PostingsPage() {
         )}
       </section>
 
+      {state && picks.length > 0 && (
+        <DigestStrip
+          picks={picks}
+          patchingId={patchingId}
+          onCardClick={handleDigestCardClick}
+          onPatch={(id, status) => void patchStatus(id, status)}
+        />
+      )}
+
       <section className="panel p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h2 className="mr-auto text-lg font-semibold">
@@ -888,6 +1005,7 @@ export default function PostingsPage() {
               return (
                 <div
                   key={p.id}
+                  id={`posting-${p.id}`}
                   className={`rounded-xl border bg-[#0c0e13] p-4 ${
                     isDismissed
                       ? "border-[var(--border)] opacity-50"
