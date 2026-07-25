@@ -6,6 +6,7 @@ import appGenerateRouter from "./app-generate.js";
 import appLibraryRouter from "./app-library.js";
 import appExportRouter from "./app-export.js";
 import appPostingsRouter from "./app-postings.js";
+import appCreditsRouter from "./app-credits.js";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(appGenerateRouter);
 router.use(appLibraryRouter);
 router.use(appExportRouter);
 router.use(appPostingsRouter);
+router.use(appCreditsRouter);
 
 export default router;
