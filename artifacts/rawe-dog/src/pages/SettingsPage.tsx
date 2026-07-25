@@ -411,7 +411,7 @@ export default function SettingsPage() {
 
         <div className="space-y-5">
           <div>
-            <label className="label">API key</label>
+            <label className="label">TheirStack API Key (Optional)</label>
             {settings?.hasTheirstackKey && !showTheirstackInput ? (
               <div className="flex items-center gap-3">
                 <code className="text-sm text-[var(--accent)]">{settings.theirstackKeyMasked}</code>
