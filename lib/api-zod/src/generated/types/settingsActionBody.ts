@@ -7,7 +7,8 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { SettingsActionBodyAction } from './settingsActionBodyAction';
 
-export interface HealthStatus {
-  status: string;
-}
+export type SettingsActionBody = {
+  action: SettingsActionBodyAction;
+};

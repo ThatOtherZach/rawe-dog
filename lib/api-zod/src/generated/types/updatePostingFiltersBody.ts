@@ -7,7 +7,8 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { SearchFilters } from './searchFilters';
 
-export interface HealthStatus {
-  status: string;
-}
+export type UpdatePostingFiltersBody = {
+  filters: SearchFilters;
+};

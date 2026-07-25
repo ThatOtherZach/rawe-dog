@@ -7,7 +7,9 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { UploadLibraryFileBodySlot } from './uploadLibraryFileBodySlot';
 
-export interface HealthStatus {
-  status: string;
-}
+export type UploadLibraryFileBody = {
+  slot: UploadLibraryFileBodySlot;
+  file: Blob;
+};

@@ -1,6 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // Orval's generated multipart types use Blob; the base config's
+    // lib list (es2022, no DOM) can't see it. Scoped to this package.
+    "lib": ["es2022", "DOM"],
     "composite": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,

@@ -8,6 +8,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+/**
+ * Experience selection produced by Pass 1 (mode=pass1).
+ */
+export interface Pass1Selection {
+  /** Catalog IDs of selected lead experiences */
+  leadExperienceIds: string[];
+  rationale?: string;
+  targetTitle?: string;
+  company?: string;
 }

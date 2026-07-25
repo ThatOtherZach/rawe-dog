@@ -8,6 +8,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export type ComposeKnowledgeDocBodyAnswersItem = {
+  /** @maxLength 300 */
+  question: string;
+  /** @maxLength 2000 */
+  answer: string;
+};

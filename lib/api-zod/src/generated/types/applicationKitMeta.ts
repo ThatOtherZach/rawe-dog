@@ -8,6 +8,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export type ApplicationKitMeta = {
+  targetTitle: string;
+  company: string;
+  leadExperiences: string[];
+  rationale: string;
+  sourcesUsed: string[];
+};

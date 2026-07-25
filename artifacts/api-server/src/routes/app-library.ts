@@ -10,9 +10,60 @@ import {
   type LibrarySlot,
   slotLabel,
 } from "../lib/library.js";
+import {
+  parseComposeRequest,
+  buildComposeMessages,
+  KNOWLEDGE_COMPOSE_SCHEMA,
+  COMPOSE_SCHEMA_NAME,
+} from "../lib/compose.js";
+import { chatStructured } from "../lib/xai.js";
+import { loadSettings } from "../lib/settings.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
+/**
+ * Compose a knowledge doc from guided-interview answers.
+ * Runs on the user's configured key/model (BYOM) and is NOT credit-gated —
+ * credits price kits, not setup. Returns markdown only and saves nothing;
+ * saving is a separate explicit step through the normal upload route.
+ */
+router.post("/library/compose", async (req: Request, res: Response) => {
+  let parsed: ReturnType<typeof parseComposeRequest>;
+  try {
+    parsed = parseComposeRequest(req.body);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    return;
+  }
+  if (!loadSettings().apiKey) {
+    res.status(400).json({
+      error: "No xAI API key configured. Add one on the Settings page first.",
+    });
+    return;
+  }
+  try {
+    const { system, user } = buildComposeMessages(parsed);
+    const { data, meta } = await chatStructured<{ markdown: string }>({
+      stage: "drafting",
+      system,
+      user,
+      schemaName: COMPOSE_SCHEMA_NAME,
+      schema: KNOWLEDGE_COMPOSE_SCHEMA,
+      maxTokens: 4096,
+      temperature: 0.4,
+    });
+    const markdown = (data.markdown || "").trim();
+    if (!markdown) {
+      res.status(502).json({ error: "Model returned an empty document. Try again." });
+      return;
+    }
+    res.json({ ok: true, markdown, model: meta.model });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(502).json({ error: message });
+  }
+});
 
 router.get("/library", (_req: Request, res: Response) => {
   const library = listLibrary();

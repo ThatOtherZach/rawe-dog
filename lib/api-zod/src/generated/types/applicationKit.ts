@@ -7,7 +7,12 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { ApplicationKitMeta } from './applicationKitMeta';
 
-export interface HealthStatus {
-  status: string;
+export interface ApplicationKit {
+  meta: ApplicationKitMeta;
+  resumeMarkdown: string;
+  coverLetterMarkdown: string;
+  alignmentNotesMarkdown: string;
+  starPrepMarkdown: string;
 }

@@ -7,7 +7,9 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { PostingsState } from './postingsState';
 
-export interface HealthStatus {
-  status: string;
-}
+export type DerivePostingFilters200 = PostingsState & {
+  /** LLM explanation of why these filters were chosen */
+  rationale?: string;
+};

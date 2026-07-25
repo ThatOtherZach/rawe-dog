@@ -8,6 +8,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface LibrarySlotMeta {
+  slot: string;
+  label: string;
+  /** Whether this slot accepts multiple files (only `experience` does) */
+  multi: boolean;
+  required: boolean;
 }

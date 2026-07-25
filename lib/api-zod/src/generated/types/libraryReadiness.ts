@@ -8,6 +8,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+/**
+ * Whether the library has the minimum required files to generate a kit.
+ */
+export interface LibraryReadiness {
+  ready: boolean;
+  /** Names of required slots that are empty */
+  missing: string[];
 }

@@ -8,6 +8,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export type SettingsActionBodyAction = typeof SettingsActionBodyAction[keyof typeof SettingsActionBodyAction];
+
+
+export const SettingsActionBodyAction = {
+  test: 'test',
+  'reset-env': 'reset-env',
+} as const;

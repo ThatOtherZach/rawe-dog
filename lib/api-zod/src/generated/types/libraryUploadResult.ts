@@ -7,7 +7,11 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { LibraryFile } from './libraryFile';
+import type { LibraryReadiness } from './libraryReadiness';
 
-export interface HealthStatus {
-  status: string;
+export interface LibraryUploadResult {
+  ok: boolean;
+  file: LibraryFile;
+  readiness: LibraryReadiness;
 }

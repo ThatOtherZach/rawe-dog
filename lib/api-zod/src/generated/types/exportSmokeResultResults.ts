@@ -8,6 +8,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export type ExportSmokeResultResults = {[key: string]: {
+  ok?: boolean;
+  bytes?: number;
+  error?: string;
+}};

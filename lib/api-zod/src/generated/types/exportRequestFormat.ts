@@ -8,6 +8,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export type ExportRequestFormat = typeof ExportRequestFormat[keyof typeof ExportRequestFormat];
+
+
+export const ExportRequestFormat = {
+  pdf: 'pdf',
+  docx: 'docx',
+  md: 'md',
+  zip: 'zip',
+} as const;

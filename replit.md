@@ -70,6 +70,7 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 | `GET` | `/api/postings/:id` | Full posting detail + canonical brief + raw description |
 | `PATCH` | `/api/postings/:id/status` | Update posting status (new/kit_generated/applied/dismissed) |
 | `GET` | `/api/library` | List library files |
+| `POST` | `/api/library/compose` | Quiz-compose a knowledge doc from interview answers (returns a markdown draft; saving is a separate explicit upload) |
 | `GET/POST/DELETE` | `/api/settings` | Read/update/clear settings (xAI key, TheirStack key, models) |
 | `GET` | `/api/credits/status` | Gate state + price + token balance (`X-Credit-Token` optional) |
 | `POST` | `/api/credits/quote` | Quote a unique exact amount (`{asset: "eth"\|"usdc"}`) |
@@ -103,7 +104,7 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 
 **Postings page**: Browse live job matches scored against your profile. Derive search filters from your Master Profile or edit them manually. Hit Refresh to fetch new results from TheirStack. Each posting shows a fit score (0-100), rationale, and the experiences that matched. Expand a row for the canonical brief (must-haves, ATS keywords, responsibilities) and full description. Click "Generate Kit" to start kit generation using the stored brief — no copy-pasting required. Mark postings as Applied or Dismissed to keep the feed actionable.
 
-**Library page**: Manage knowledge files — Master Profile, experience entries, and resume/cover-letter templates.
+**Library page**: Manage knowledge files — Master Profile, experience entries, and resume/cover-letter templates. Each knowledge slot offers a downloadable starter and a "Compose with a quiz" wizard: answer a short guided interview, the configured model drafts the file against the starter skeleton, review the markdown, tweak-and-regenerate if needed, and accept to save (experience loops one role at a time, oldest first). Composing is BYOM (needs the xAI key) and never credit-gated.
 
 **Settings page**: Configure the xAI API key (required for all generation), TheirStack API key (required for Postings), and per-stage model overrides.
 
@@ -119,6 +120,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 - `fenceData()` in `prompt.ts` must be used for every piece of provider-supplied text before it reaches a prompt. It strips lookalike fence markers so content cannot escape its untrusted-data boundary.
 - The credit gate is invisible when off: `CreditsPanel` renders nothing and `/api/generate` skips all credit checks unless `RAWEDOG_CREDITS_ENFORCED=true`. Losing `SESSION_SECRET` invalidates every issued credit token (HMAC), even though ledger rows survive.
 - Credit consumption is spend-after-deliver: the credit is debited after the kit succeeds, backed by an in-flight reservation so one credit can't fund parallel runs. Don't move the spend earlier (failed runs must stay free), and don't remove the reservation (that reopens the parallel-run bypass).
+- The starter skeletons are duplicated: `artifacts/rawe-dog/public/starters/*.md` (user downloads) and `STARTER_SKELETONS` in `artifacts/api-server/src/lib/compose.ts` (quiz-compose prompts — the server can't read the web artifact's public dir in production). A drift-guard unit test in `tests/specs/quiz-compose.spec.ts` fails if they diverge; update both together.
+- In dev, the vite server (`:24020`) has no `/api` proxy — the platform router on `localhost:80` joins the web app and API server. Curl APIs via `localhost:80/api/…`; hitting `:24020/api/…` returns the SPA HTML (GET) or 404 (POST). Playwright specs intercept all `/api` calls, so they run against `:24020` fine.
+- After editing `lib/api-spec/openapi.yaml`, run `pnpm --filter @workspace/api-spec run codegen`. Route changes without a codegen run leave the generated clients stale and store up breakage for whoever regenerates next. If a regen fails with TS2308 in `lib/api-zod/src/index.ts`, a new orval name collision appeared — add the name to the explicit re-export list there (see the comment in that file).
 
 ## Credits
 

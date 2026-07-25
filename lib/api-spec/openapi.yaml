@@ -198,6 +198,73 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /library/compose:
+    post:
+      operationId: composeKnowledgeDoc
+      tags: [library]
+      summary: Quiz-compose a knowledge document
+      description: >
+        Turn guided-interview answers into a markdown draft for a knowledge
+        slot (master-profile, system-instructions, or experience — template
+        slots are not composable). Uses the configured xAI key/model; not
+        credit-gated. Returns the draft only — nothing is saved; accepting a
+        draft goes through the normal `POST /library` upload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slot:
+                  type: string
+                  enum: [master-profile, system-instructions, experience]
+                answers:
+                  type: array
+                  maxItems: 30
+                  items:
+                    type: object
+                    properties:
+                      question:
+                        type: string
+                        maxLength: 300
+                      answer:
+                        type: string
+                        maxLength: 2000
+                    required: [question, answer]
+                tweakNote:
+                  type: string
+                  maxLength: 1000
+                  description: Optional revision note applied on regenerate.
+              required: [slot, answers]
+      responses:
+        "200":
+          description: Composed markdown draft
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  markdown:
+                    type: string
+                  model:
+                    type: string
+                required: [ok, markdown, model]
+        "400":
+          description: Invalid slot/answers, or no API key configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Model call failed or returned an empty document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /library/file:
     get:
       operationId: downloadLibraryFile

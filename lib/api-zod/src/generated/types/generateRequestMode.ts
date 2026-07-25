@@ -8,6 +8,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export type GenerateRequestMode = typeof GenerateRequestMode[keyof typeof GenerateRequestMode];
+
+
+export const GenerateRequestMode = {
+  full: 'full',
+  pass1: 'pass1',
+  pass2: 'pass2',
+  stream: 'stream',
+} as const;

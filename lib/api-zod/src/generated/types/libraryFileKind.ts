@@ -8,6 +8,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export type LibraryFileKind = typeof LibraryFileKind[keyof typeof LibraryFileKind];
+
+
+export const LibraryFileKind = {
+  md: 'md',
+  pdf: 'pdf',
+  txt: 'txt',
+} as const;

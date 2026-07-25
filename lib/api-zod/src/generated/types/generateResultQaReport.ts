@@ -8,6 +8,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+/**
+ * Verification findings (present when verification ran)
+ */
+export type GenerateResultQaReport = {
+  findings?: string[];
+  keywordCoverage?: string[];
+  repaired?: string[];
+};

@@ -213,14 +213,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <section className="panel p-5">
         <h2 className="mb-2 text-base font-semibold">About</h2>
-        <p className="text-sm text-[var(--muted)]">
-          RAWE Dog generates tailored application kits (resume, cover letter,
-          alignment notes, STAR prep) from a job posting and your personal
-          knowledge library, grounded entirely in your own experience files.
-          Every run drafts documents in parallel, then verifies grounding and
-          consistency before delivery. No fabrication — core guardrails are
-          immutable.
-        </p>
+        <p className="text-sm text-[var(--muted)]">RAWE-DOG generates tailored application kits (resume, cover letter, alignment notes, STAR prep) from a job posting and your personal knowledge library, grounded entirely in your own experience files. Every run drafts documents in parallel, then verifies grounding and consistency before delivery. No fabrication and uses guardrails to ensure accuracy.</p>
         <hr className="my-4 border-[var(--border)]" />
         <h3 className="mb-2 text-sm font-semibold">Support RAWE Dog</h3>
         <div className="flex flex-wrap items-center gap-4">
@@ -255,7 +248,6 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
-
       <section className="panel p-5">
         <div className="mb-4 flex items-center gap-2">
           <h1 className="mr-auto text-xl font-semibold">Settings</h1>
@@ -460,7 +452,6 @@ export default function SettingsPage() {
           )}
         </div>
       </section>
-
       {/* Danger zone */}
       <section className="panel p-5 border-[var(--danger)] border">
         <h2 className="mb-1 text-base font-semibold text-[var(--danger)]">Danger zone</h2>

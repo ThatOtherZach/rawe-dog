@@ -16,7 +16,7 @@ export function Nav() {
           RD
         </div>
         <div>
-          <div className="text-sm font-semibold tracking-wide">RAWE Dog</div>
+          <div className="text-sm font-semibold tracking-wide">RAWE-DOG</div>
           <div className="text-xs text-[var(--muted)]">
             Job paste → tailored application kit
           </div>

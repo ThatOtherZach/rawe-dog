@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ComposeWizard, type ComposeSlot } from "../components/ComposeWizard";
 
 type SlotInfo = {
   slot: string;
@@ -84,10 +85,17 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null);
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [composeSlot, setComposeSlot] = useState<SlotInfo | null>(null);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/library");
-    setData(await res.json());
+    const [libRes, settingsRes] = await Promise.all([
+      fetch("/api/library"),
+      fetch("/api/settings"),
+    ]);
+    setData(await libRes.json());
+    const settings = (await settingsRes.json()) as { hasApiKey?: boolean };
+    setHasApiKey(Boolean(settings.hasApiKey));
   }, []);
 
   useEffect(() => {
@@ -304,7 +312,8 @@ export default function LibraryPage() {
           <p className="text-sm text-[var(--muted)]">
             Master Profile, experience files, and optional custom system
             instructions. Each card offers a starter that shows the expected
-            shape — download, fill in, upload.
+            shape — download, fill in, upload. Or skip the editor: answer a
+            short quiz and your model drafts the file for you.
           </p>
         </div>
 
@@ -342,8 +351,15 @@ export default function LibraryPage() {
                       </span>
                     )}
                   </h3>
-                  <a
+                  <button
                     className={files.length === 0 ? "btn btn-primary" : "btn"}
+                    data-testid={`compose-open-${slot.slot}`}
+                    onClick={() => setComposeSlot(slot)}
+                  >
+                    Compose with a quiz
+                  </button>
+                  <a
+                    className="btn"
                     href={starter.starterHref}
                     download={starter.starterName}
                   >
@@ -419,6 +435,17 @@ export default function LibraryPage() {
           })}
         </div>
       </section>
+
+      {composeSlot && (
+        <ComposeWizard
+          slot={composeSlot.slot as ComposeSlot}
+          slotTitle={composeSlot.label}
+          hasExisting={(data?.files[composeSlot.slot] || []).length > 0}
+          hasApiKey={hasApiKey}
+          onClose={() => setComposeSlot(null)}
+          onSaved={refresh}
+        />
+      )}
     </div>
   );
 }

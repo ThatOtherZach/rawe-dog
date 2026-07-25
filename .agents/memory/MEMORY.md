@@ -6,3 +6,5 @@
 - [GitHub PUSH_REJECTED diagnosis](github-push-rejected.md) — bare PUSH_REJECTED is usually secret-scanning; scan unpushed commits for keys, and filter-branch removes purged files from disk too.
 - [Accountless credits pattern](accountless-credits-pattern.md) — user's toasteth monetization: bearer-token credits, gate off by default, spend-on-success requires an in-flight reservation + atomic store claims.
 - [req vs res close event](req-vs-res-close-event.md) — use res.on("close") not req.on("close") for SSE disconnect; req fires when express.json() finishes parsing the body, not when the client leaves.
+- [Playwright blob multipart](playwright-blob-multipart.md) — CDP can't read File-blob FormData bodies; capture uploads with an injected fetch wrapper + echo headers.
+- [Orval codegen pitfalls](orval-codegen-pitfalls.md) — zod+ts dual output collides on <OperationId>Body names; index append on quote mismatch; Blob needs a DOM lib. Regen with every spec edit.

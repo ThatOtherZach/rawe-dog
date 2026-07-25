@@ -1,29 +1,38 @@
-# RAWE Dog AI Skill
-**R**esume **A**nd **W**ork **E**xperience
+# RAWE-DOG
+**R**esume **A**nd **W**ork **E**xperience - **D**ocument **O**utput **G**enerator
 
-**Your personal hiring manager AI Skill.**
+**A Personal AI Hiring Manager**
 
-RAWE Dog is an open-source framework that turns your career history into high-quality, ATS-optimized resumes, cover letters, and career documents using **any LLM** you want.
+RAWE-DOG is an open-source framework that turns your career history into high-quality, ATS-optimized resumes, cover letters, and career documents using **any AI or LLM** you want.
 
-It works by giving the model a structured "Master Profile" + detailed experience files instead of hoping a generic prompt will remember who you are. The result is output that actually sounds like you and is grounded in your real achievements.
+It works by giving the model a structured "Master Profile" + detailed experience files instead of hoping a generic prompt will remember who you are. The result is output that actually sounds like you and is grounded in your real achievements using a library of additional files to support the resume generation.
 
 ## Why This Exists
 
 Most AI resume tools are either:
 - Generic or
-- Require you to paste your entire life story into someone else's chatbot every time.
+- Require you to paste your entire life story every time.
 
-RAWE Dog takes the opposite approach: **you build a high-quality knowledge base once**, then use it with whatever LLM you trust (Claude, GPT, Grok, local models, custom, sock puppets, etc.). The framework tells the model how to think about your experience in a contextual way.
+RAWE-DOG takes the opposite approach: **you build a high-quality knowledge base once**, then use it with whatever LLM you trust (Claude, GPT, Grok, local models, custom, sock puppets, IDC, etc.). The framework tells the model how to think about your experience in a contextual way.
 
 ## How It Works
 
 The system has three layers:
 
 1. **Master Profile** Your strategic source of truth. Contains alignment tables, tone rules, skill indexes, and guidance on which parts of your history to emphasize for different roles.
-2. **Experience Files** Rich, detailed write-ups of your actual work (projects, impact, S.T.A.R. stories). These are what stop the LLM from hallucinating or being generic; locking in to applicable skills.
-3. **System Instructions** A set of rules that turn any LLM into a competent, consistent "hiring manager" who knows how to select and frame your experience.
+2. **System Instructions** A set of rules that turn any AI or LLM into a competent, consistent "hiring manager" who knows how to select and frame your experience.
+3. **Experience Files** Rich, detailed write-ups of your actual work (projects, impact, S.T.A.R. stories). These are what stop the AI or LLM from hallucinating or being generic; locking in to applicable skills.
 
-## Quick Start (framework / any LLM)
+## Who This Is For
+
+- People who want **much better** output than generic AI/LLM resume tools
+- Technical professionals, career changers, and anyone tired of generic bullet points
+- Power users who already work with AIs or LLMs and want structure + grounding
+- People who value owning their data and not feeding it to random web apps
+
+**Note:** This framework rewards effort. The better your Master Profile and experience files, the better the output. It's not zero-effort magic. It's your data, take as many or as few precautions as you feel necessary.
+
+## Quick Start (framework for any AI or LLM)
 
 1. Copy the templates:
    ```bash
@@ -59,15 +68,6 @@ npm run dev
 | [web/AGENTS.md](./web/AGENTS.md) | Short rules for coding agents working in `web/` |
 
 Personal uploads and API keys live only under **gitignored** `web/data/` — never commit that directory.
-
-## Who This Is For
-
-- People who want **much better** output than generic AI resume tools
-- Technical professionals, career changers, and anyone tired of generic bullet points
-- Power users who already work with LLMs and want structure + grounding
-- People who value owning their data and not feeding it to random web apps
-
-**Note:** This framework rewards effort. The better your Master Profile and experience files, the better the output. It's not zero-effort magic. It's your data, take as many or as few precautions as you feel necessary.
 
 ## Repository Structure
 

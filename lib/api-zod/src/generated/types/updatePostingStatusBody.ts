@@ -7,7 +7,8 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { PostingStatus } from './postingStatus';
 
-export interface HealthStatus {
-  status: string;
-}
+export type UpdatePostingStatusBody = {
+  status: PostingStatus;
+};

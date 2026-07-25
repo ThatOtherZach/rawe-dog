@@ -7,7 +7,9 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+import type { ExportSmokeResultResults } from './exportSmokeResultResults';
 
-export interface HealthStatus {
-  status: string;
+export interface ExportSmokeResult {
+  ok: boolean;
+  results: ExportSmokeResultResults;
 }
