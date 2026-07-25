@@ -403,7 +403,7 @@ export default function SettingsPage() {
       {/* TheirStack */}
       <section className="panel p-5">
         <div className="mb-4 flex items-center gap-2">
-          <h2 className="mr-auto text-base font-semibold">TheirStack</h2>
+          <h2 className="mr-auto text-base font-semibold">TheirStack Job Postings API</h2>
           <span className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}>
             API key {settings?.hasTheirstackKey ? "set" : "missing"}
           </span>
