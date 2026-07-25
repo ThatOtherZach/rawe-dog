@@ -52,6 +52,8 @@ type Kit = {
 
 type ExpOption = { id: string; catalogId: string; title: string; fileName: string };
 
+type LegitimacyTier = "high_confidence" | "caution" | "suspicious";
+
 type LinkedPosting = {
   id: string;
   title: string;
@@ -63,6 +65,8 @@ type LinkedPosting = {
   rationale: string;
   matchedExperienceIds: string[];
   hasBrief: boolean;
+  legitimacy: LegitimacyTier | null;
+  legitimacySignals: string[];
 };
 
 type QaFinding = {
@@ -200,6 +204,12 @@ export default function GeneratePage() {
   const cancelRef = useRef<AbortController | null>(null);
   /** Brief "Run cancelled" notice shown after the user aborts a run. */
   const [cancelledNotice, setCancelledNotice] = useState(false);
+  /**
+   * Whether the user has explicitly confirmed they want to proceed despite a
+   * "suspicious" legitimacy flag on the linked posting.  Reset whenever the
+   * linked posting changes so a newly-linked posting always shows the banner.
+   */
+  const [suspicionConfirmed, setSuspicionConfirmed] = useState(false);
   const cancelNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearProgressTimer = () => {
@@ -525,6 +535,11 @@ export default function GeneratePage() {
       : { jobPosting, company, targetTitle, notes };
   }
 
+  // Reset confirmation any time a different posting is linked (or unlinked).
+  useEffect(() => {
+    setSuspicionConfirmed(false);
+  }, [linkedPosting?.id]);
+
   function unlinkPosting() {
     setLinkedPosting(null);
     navigate("/", { replace: true });
@@ -802,6 +817,46 @@ export default function GeneratePage() {
                       ? "Generation runs from this posting's scored brief — nothing to paste, and the pipeline stays token-efficient."
                       : "This posting has no fit brief yet, so its full description will be used."}
                   </p>
+
+                  {/* Suspicious-posting confirmation banner */}
+                  {linkedPosting.legitimacy === "suspicious" && !suspicionConfirmed && (
+                    <div className="mt-3 rounded-lg border border-[#7a2e2e] bg-[#2a1414] px-3 py-3 text-sm text-[#ff8f8f]">
+                      <p className="mb-1.5 font-medium">
+                        ⚠ Review carefully — multiple signals worth verifying before generating
+                      </p>
+                      {linkedPosting.legitimacySignals.length > 0 && (
+                        <ul className="mb-2 list-disc space-y-0.5 pl-4 text-xs">
+                          {linkedPosting.legitimacySignals.map((s, i) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="mb-2.5 text-xs opacity-70">
+                        Every signal has a legitimate explanation — you decide.
+                        Generating a kit spends a credit; confirm you want to proceed.
+                      </p>
+                      <button
+                        className="btn"
+                        onClick={() => setSuspicionConfirmed(true)}
+                      >
+                        Proceed anyway
+                      </button>
+                    </div>
+                  )}
+
+                  {linkedPosting.legitimacy === "suspicious" && suspicionConfirmed && (
+                    <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[#0c0e13] px-3 py-2 text-xs text-[var(--muted)]">
+                      <span>⚠ Legitimacy signals noted — proceeding on your confirmation.</span>
+                      <button
+                        className="shrink-0 opacity-60 hover:opacity-100"
+                        onClick={() => setSuspicionConfirmed(false)}
+                        aria-label="Show signals again"
+                      >
+                        Review signals
+                      </button>
+                    </div>
+                  )}
+
                   <div className="mt-auto flex flex-wrap gap-2 pt-3">
                     {linkedPosting.url && (
                       <a
@@ -877,7 +932,12 @@ export default function GeneratePage() {
             </div>
             <button
               className="btn btn-primary w-full shrink-0"
-              disabled={busy || !ready || (!jobPosting.trim() && !linkedPosting)}
+              disabled={
+                busy ||
+                !ready ||
+                (!jobPosting.trim() && !linkedPosting) ||
+                (linkedPosting?.legitimacy === "suspicious" && !suspicionConfirmed)
+              }
               onClick={() => void runPass1()}
             >
               {stage === "pass1" ? "Selecting…" : "Select Experiences"}
@@ -885,7 +945,11 @@ export default function GeneratePage() {
             {linkedPosting && linkedPosting.matchedExperienceIds.length > 0 && (
               <button
                 className="btn w-full shrink-0"
-                disabled={busy || !ready}
+                disabled={
+                  busy ||
+                  !ready ||
+                  (linkedPosting.legitimacy === "suspicious" && !suspicionConfirmed)
+                }
                 onClick={() => void runPass1({ useFitPicks: true })}
                 title="Skip selection — reuse the experiences matched during fit scoring (no extra LLM call)"
               >
@@ -894,7 +958,12 @@ export default function GeneratePage() {
             )}
             <button
               className="btn w-full shrink-0"
-              disabled={busy || !ready || (!jobPosting.trim() && !linkedPosting)}
+              disabled={
+                busy ||
+                !ready ||
+                (!jobPosting.trim() && !linkedPosting) ||
+                (linkedPosting?.legitimacy === "suspicious" && !suspicionConfirmed)
+              }
               onClick={() => void runFull()}
               title="Skip manual review; run the full pipeline automatically"
             >
