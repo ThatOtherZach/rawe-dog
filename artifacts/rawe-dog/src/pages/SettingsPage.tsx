@@ -299,7 +299,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label className="label">API endpoint (base URL)</label>
+            <label className="label">Custom API Endpoint (Base URL)</label>
             <input
               className="input font-mono text-sm"
               type="text"
