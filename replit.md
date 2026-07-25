@@ -104,9 +104,9 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 
 **Postings page**: Browse live job matches scored against your profile. Derive search filters from your Master Profile or edit them manually. Hit Refresh to fetch new results from TheirStack. Each posting shows a fit score (0-100), rationale, and the experiences that matched. Expand a row for the canonical brief (must-haves, ATS keywords, responsibilities) and full description. Click "Generate Kit" to start kit generation using the stored brief — no copy-pasting required. Mark postings as Applied or Dismissed to keep the feed actionable.
 
-**Library page**: Manage knowledge files — Master Profile, experience entries, and resume/cover-letter templates. Each knowledge slot offers a downloadable starter and a "Compose with a quiz" wizard: answer a short guided interview, the configured model drafts the file against the starter skeleton, review the markdown, tweak-and-regenerate if needed, and accept to save (experience loops one role at a time, oldest first). Composing is BYOM (needs the xAI key) and never credit-gated.
+**Library page**: Manage knowledge files — Master Profile, experience entries, and resume/cover-letter templates. Each knowledge slot has a **Create** button (guided interview → model drafts the file against the starter skeleton → review/tweak/regenerate → accept to save), a **Template** link (download starter), and a direct upload. Experience loops one role at a time, oldest first. Creating is BYOM (needs the AI LLM key) and never credit-gated.
 
-**Settings page**: Configure the xAI API key (required for all generation), TheirStack API key (required for Postings), and per-stage model overrides.
+**Settings page**: Two panels — **AI & LLM Settings** (API key, endpoint, drafting/selection/verification model overrides, Save, Test connection) and **TheirStack** (API key for live job search). Clear buttons remove keys immediately; saving a new key goes through Save.
 
 ## User preferences
 
