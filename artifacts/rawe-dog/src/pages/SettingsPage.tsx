@@ -248,10 +248,10 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
-      {/* xAI */}
+      {/* AI & LLM Settings */}
       <section className="panel p-5">
         <div className="mb-4 flex items-center gap-2">
-          <h2 className="mr-auto text-base font-semibold">xAI</h2>
+          <h2 className="mr-auto text-base font-semibold">AI &amp; LLM Settings</h2>
           <span className={`badge ${settings?.hasApiKey ? "badge-ok" : "badge-bad"}`}>
             AI LLM key {settings?.hasApiKey ? "set" : "missing"}
           </span>
@@ -259,7 +259,7 @@ export default function SettingsPage() {
 
         <div className="space-y-5">
           <div>
-            <label className="label">API key</label>
+            <label className="label">xAI API Key</label>
             {settings?.hasApiKey && !showXaiInput ? (
               <div className="flex items-center gap-3">
                 <code className="text-sm text-[var(--accent)]">{settings.apiKeyMasked}</code>
@@ -400,7 +400,6 @@ export default function SettingsPage() {
           )}
         </div>
       </section>
-
       {/* TheirStack */}
       <section className="panel p-5">
         <div className="mb-4 flex items-center gap-2">
