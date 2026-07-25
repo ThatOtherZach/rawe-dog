@@ -120,6 +120,10 @@ _Populate as you build — explicit user instructions worth remembering across s
 - The credit gate is invisible when off: `CreditsPanel` renders nothing and `/api/generate` skips all credit checks unless `RAWEDOG_CREDITS_ENFORCED=true`. Losing `SESSION_SECRET` invalidates every issued credit token (HMAC), even though ledger rows survive.
 - Credit consumption is spend-after-deliver: the credit is debited after the kit succeeds, backed by an in-flight reservation so one credit can't fund parallel runs. Don't move the spend earlier (failed runs must stay free), and don't remove the reservation (that reopens the parallel-run bypass).
 
+## Credits
+
+- **Ghost-posting legitimacy signal taxonomy** adapted from [career-ops](https://github.com/santifer/career-ops) (MIT licence, Santiago Fernández de Valderrama). Design port of the signal categories and calibration rules; no shared code. Attribution comments live in `artifacts/api-server/src/lib/schemas.ts` (schema) and `artifacts/api-server/src/lib/jobs/store.ts` (type).
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details

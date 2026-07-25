@@ -29,6 +29,8 @@ type RefreshStats = {
 
 type PostingStatus = "new" | "kit_generated" | "applied" | "dismissed";
 
+type LegitimacyTier = "high_confidence" | "caution" | "suspicious";
+
 type PostingSummary = {
   id: string;
   title: string;
@@ -47,6 +49,9 @@ type PostingSummary = {
   matchedExperienceIds: string[];
   hasBrief: boolean;
   scoredAt: string | null;
+  /** Absent on pre-existing records — no badge rendered when null. */
+  legitimacy: LegitimacyTier | null;
+  legitimacySignals: string[];
 };
 
 type StatusCounts = {
@@ -94,6 +99,8 @@ type PostingDetail = PostingSummary & {
     rationale: string;
     matchedExperienceIds: string[];
     brief: Brief;
+    legitimacy?: LegitimacyTier;
+    legitimacySignals?: string[];
     scoredAt: string;
     model: string;
   } | null;
@@ -131,6 +138,38 @@ function scoreChipClass(score: number): string {
     return "border-[color-mix(in_srgb,var(--accent)_55%,var(--border))] text-[var(--accent)]";
   if (score >= 55) return "border-[#7a5c2e] text-[#ffd28f]";
   return "border-[#7a2e2e] text-[#ff8f8f]";
+}
+
+/**
+ * Legitimacy badge — shown only when tier ≠ high_confidence.
+ * Signals inform, never block. Copy tone is observational ("worth a look"),
+ * never accusatory. Absent on pre-existing records (null tier).
+ */
+function LegitimacyBadge({
+  tier,
+}: {
+  tier: LegitimacyTier | null;
+}) {
+  if (!tier || tier === "high_confidence") return null;
+
+  const isSuspicious = tier === "suspicious";
+  const label = isSuspicious ? "Review carefully" : "Worth a look";
+  const title = isSuspicious
+    ? "Review carefully — multiple signals worth checking before applying"
+    : "Worth a look — one or more signals worth verifying before applying";
+  const classes = isSuspicious
+    ? "border-[#7a2e2e] bg-[#2a1414] text-[#ff8f8f]"
+    : "border-[#7a5c2e] bg-[#2a2214] text-[#ffd28f]";
+
+  return (
+    <span
+      className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${classes}`}
+      title={title}
+    >
+      {isSuspicious ? "⚠ " : "○ "}
+      {label}
+    </span>
+  );
 }
 
 function ScoreChip({ score }: { score: number | null }) {
@@ -227,9 +266,10 @@ function DigestStrip({
               <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
                 {label}
               </span>
-              {/* Score + title */}
+              {/* Score + legitimacy */}
               <div className="flex flex-wrap items-start gap-2">
                 <ScoreChip score={p.score} />
+                <LegitimacyBadge tier={p.legitimacy} />
               </div>
               <button
                 className="text-left text-sm font-semibold text-[var(--text)] hover:underline"
@@ -1014,6 +1054,7 @@ export default function PostingsPage() {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <ScoreChip score={p.score} />
+                    <LegitimacyBadge tier={p.legitimacy} />
                     <button
                       className="text-left text-sm font-semibold text-[var(--text)] hover:underline"
                       onClick={() => void toggleExpand(p.id)}
@@ -1130,6 +1171,32 @@ export default function PostingsPage() {
                         </p>
                       ) : (
                         <>
+                          {/* Legitimacy signals — shown when tier ≠ high_confidence */}
+                          {d.legitimacy && d.legitimacy !== "high_confidence" && (
+                            <div
+                              className={`mb-3 rounded-lg border px-3 py-2 text-xs ${
+                                d.legitimacy === "suspicious"
+                                  ? "border-[#7a2e2e] bg-[#2a1414] text-[#ff8f8f]"
+                                  : "border-[#7a5c2e] bg-[#2a2214] text-[#ffd28f]"
+                              }`}
+                            >
+                              <p className="mb-1 font-medium">
+                                {d.legitimacy === "suspicious"
+                                  ? "⚠ Review carefully — multiple signals worth verifying"
+                                  : "○ Worth a look — signals worth verifying before applying"}
+                              </p>
+                              {d.legitimacySignals && d.legitimacySignals.length > 0 && (
+                                <ul className="list-disc space-y-0.5 pl-4">
+                                  {d.legitimacySignals.map((s, i) => (
+                                    <li key={i}>{s}</li>
+                                  ))}
+                                </ul>
+                              )}
+                              <p className="mt-1.5 opacity-70">
+                                Every signal has a legitimate explanation — you decide.
+                              </p>
+                            </div>
+                          )}
                           {d.fit?.brief && (
                             <div className="grid gap-3 md:grid-cols-2">
                               <ListBlock

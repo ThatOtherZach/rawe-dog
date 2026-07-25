@@ -13,6 +13,8 @@ import { getDataRoot } from "../paths.js";
 import { normalizeBrief, type JobBrief } from "./brief.js";
 import { normalizeFilters, type JobPosting, type SearchFilters } from "./provider.js";
 
+export type LegitimacyTier = "high_confidence" | "caution" | "suspicious";
+
 export type FitResult = {
   /** 0-100 realistic-fit score. */
   score: number;
@@ -22,6 +24,14 @@ export type FitResult = {
   matchedExperienceIds: string[];
   /** Canonical brief extracted from the posting in the same scan call. */
   brief: JobBrief;
+  /**
+   * Posting legitimacy tier — orthogonal to fit score (career-ops signal taxonomy,
+   * MIT, Santiago Fernández de Valderrama, github.com/santifer/career-ops).
+   * Absent on pre-existing records; treated as no badge in the UI.
+   */
+  legitimacy?: LegitimacyTier;
+  /** 0-3 short observational notes explaining the legitimacy tier. */
+  legitimacySignals?: string[];
   scoredAt: string;
   model: string;
 };

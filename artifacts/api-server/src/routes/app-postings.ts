@@ -43,6 +43,9 @@ function summarize(sp: StoredPosting) {
     matchedExperienceIds: fit?.matchedExperienceIds ?? [],
     hasBrief: briefIsUsable(fit?.brief),
     scoredAt: fit?.scoredAt ?? null,
+    // Legitimacy fields — absent on pre-existing records (no badge rendered)
+    legitimacy: fit?.legitimacy ?? null,
+    legitimacySignals: fit?.legitimacySignals ?? [],
   };
 }
 

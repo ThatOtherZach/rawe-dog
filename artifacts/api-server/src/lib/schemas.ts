@@ -169,6 +169,10 @@ export const FILTER_DERIVATION_SCHEMA: JsonSchemaObject = {
  * Batch fit-scan schema. Job ids AND experience references are both
  * enum-constrained so the API prevents made-up ids (same pattern as
  * buildSelectionSchema).
+ *
+ * Legitimacy signal taxonomy adapted from career-ops (MIT licence,
+ * Santiago Fernández de Valderrama — github.com/santifer/career-ops).
+ * Design port: same signal categories and calibration rules, no shared code.
  */
 export function buildFitScanSchema(
   jobIds: string[],
@@ -187,7 +191,15 @@ export function buildFitScanSchema(
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["jobId", "score", "rationale", "matchedExperienceIds", "brief"],
+          required: [
+            "jobId",
+            "score",
+            "rationale",
+            "matchedExperienceIds",
+            "brief",
+            "legitimacy",
+            "legitimacySignals",
+          ],
           properties: {
             jobId: { type: "string", enum: jobIds },
             score: { type: "integer", description: "Calibrated 0-100 fit score" },
@@ -199,6 +211,18 @@ export function buildFitScanSchema(
               type: "array",
               description: "0-4 catalog IDs of best-matching experiences, strongest first",
               items: expItem,
+            },
+            legitimacy: {
+              type: "string",
+              enum: ["high_confidence", "caution", "suspicious"],
+              description:
+                "Posting legitimacy tier — separate from fit score, never blended into it. high_confidence: nothing unusual; caution: one or more soft signals worth noting; suspicious: two or more corroborating hard signals.",
+            },
+            legitimacySignals: {
+              type: "array",
+              description:
+                "0-3 short, observational notes on legitimacy signals (empty for high_confidence). Each string names the observation without accusing — e.g. 'senior requirements under an entry-level title'. Never include applicant-fit commentary.",
+              items: { type: "string" },
             },
             brief: {
               type: "object",
