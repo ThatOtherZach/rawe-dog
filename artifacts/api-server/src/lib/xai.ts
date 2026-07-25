@@ -14,6 +14,17 @@ const CALL_TIMEOUT_MS =
     ? Number(process.env["XAI_TIMEOUT_MS"])
     : 300_000;
 
+/**
+ * Resolve the LLM base URL:
+ *   1. User-configured endpoint in Settings (highest priority — BYOM).
+ *   2. XAI_BASE_URL env hook (dev/test mock harness, kept for e2e tests).
+ *   3. Default xAI production endpoint.
+ */
+function getResolvedBaseURL(): string {
+  const { apiEndpoint } = loadSettings();
+  return apiEndpoint || process.env["XAI_BASE_URL"]?.trim() || "https://api.x.ai/v1";
+}
+
 export function getXaiClient(): OpenAI {
   const { apiKey } = loadSettings();
   if (!apiKey) {
@@ -21,10 +32,10 @@ export function getXaiClient(): OpenAI {
       "No xAI API key configured. Add one on the Settings page or set XAI_API_KEY."
     );
   }
+  const baseURL = getResolvedBaseURL();
   return new OpenAI({
     apiKey,
-    // XAI_BASE_URL is a dev/test hook (e.g. point at a local mock); defaults to the real API.
-    baseURL: process.env["XAI_BASE_URL"]?.trim() || "https://api.x.ai/v1",
+    baseURL,
     timeout: CALL_TIMEOUT_MS,
     // One transient retry; schema/truncation retries are handled above this.
     maxRetries: 1,
@@ -70,19 +81,31 @@ function isSchemaFormatError(err: unknown): boolean {
   );
 }
 
+function getEndpointHost(): string {
+  const baseURL = getResolvedBaseURL();
+  try {
+    return new URL(baseURL).host;
+  } catch {
+    return baseURL;
+  }
+}
+
 function wrapApiError(err: unknown, stage: LlmStage, model: string): Error {
+  const host = getEndpointHost();
   if (err instanceof OpenAI.APIConnectionTimeoutError) {
     return new Error(
-      `xAI ${stage} call (${model}) timed out after ${Math.round(
+      `${stage} call (${model}) via ${host} timed out after ${Math.round(
         CALL_TIMEOUT_MS / 60_000
       )} min. The service may be slow or unreachable — retry the run.`
     );
   }
   if (err instanceof OpenAI.APIError) {
     if (err.status === 401 || err.status === 403) {
-      return new Error("xAI rejected the API key. Check it on the Settings page.");
+      return new Error(
+        `API key rejected by ${host}. Check your key on the Settings page.`
+      );
     }
-    return new Error(`xAI ${stage} call failed (${model}): ${err.message}`);
+    return new Error(`${stage} call failed (${model}) via ${host}: ${err.message}`);
   }
   return err instanceof Error ? err : new Error(String(err));
 }

@@ -13,6 +13,15 @@ router.get("/settings", (_req: Request, res: Response) => {
   res.json(publicSettings());
 });
 
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 router.put("/settings", async (req: Request, res: Response) => {
   const body = req.body as {
     apiKey?: string;
@@ -22,6 +31,7 @@ router.put("/settings", async (req: Request, res: Response) => {
     clearApiKey?: boolean;
     theirstackApiKey?: string;
     clearTheirstackKey?: boolean;
+    apiEndpoint?: string;
   };
 
   const current = loadSettings();
@@ -31,6 +41,7 @@ router.put("/settings", async (req: Request, res: Response) => {
     selectionModel?: string;
     verificationModel?: string;
     theirstackApiKey?: string;
+    apiEndpoint?: string;
   } = {};
 
   if (body.clearApiKey) {
@@ -57,6 +68,16 @@ router.put("/settings", async (req: Request, res: Response) => {
   }
   if (typeof body.verificationModel === "string") {
     partial.verificationModel = body.verificationModel.trim();
+  }
+
+  // apiEndpoint: empty string = clear (use default). Non-empty must be a valid http(s) URL.
+  if (typeof body.apiEndpoint === "string") {
+    const trimmed = body.apiEndpoint.trim();
+    if (trimmed && !isValidHttpUrl(trimmed)) {
+      res.status(400).json({ error: "API endpoint must be a valid http or https URL." });
+      return;
+    }
+    partial.apiEndpoint = trimmed;
   }
 
   if (partial.apiKey === undefined) {

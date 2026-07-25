@@ -8,6 +8,8 @@ type PublicSettings = {
   verificationModel: string;
   hasTheirstackKey: boolean;
   theirstackKeyMasked: string;
+  /** Stored endpoint, or "" if using the default. */
+  apiEndpoint: string;
 };
 
 const MODELS = [
@@ -25,6 +27,7 @@ export default function SettingsPage() {
   const [model, setModel] = useState("grok-4.5");
   const [selectionModel, setSelectionModel] = useState("");
   const [verificationModel, setVerificationModel] = useState("");
+  const [apiEndpoint, setApiEndpoint] = useState("");
   const [showXaiInput, setShowXaiInput] = useState(false);
   const [showTheirstackInput, setShowTheirstackInput] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -36,6 +39,7 @@ export default function SettingsPage() {
     setModel(MODELS.includes(data.model) ? data.model : "grok-4.5");
     setSelectionModel(MODELS.includes(data.selectionModel) ? data.selectionModel : "");
     setVerificationModel(MODELS.includes(data.verificationModel) ? data.verificationModel : "");
+    setApiEndpoint(data.apiEndpoint ?? "");
   }, []);
 
   const refresh = useCallback(async () => {
@@ -55,10 +59,13 @@ export default function SettingsPage() {
       verificationModel: string;
       apiKey?: string;
       theirstackApiKey?: string;
+      apiEndpoint: string;
     } = {
       model,
       selectionModel,
       verificationModel,
+      // Always send endpoint (empty string = clear/use default).
+      apiEndpoint: apiEndpoint.trim(),
     };
     const keyToSend = opts?.key ?? apiKey;
     if (keyToSend.trim()) body.apiKey = keyToSend.trim();
@@ -303,6 +310,24 @@ export default function SettingsPage() {
                 </p>
               </>
             )}
+          </div>
+
+          <div>
+            <label className="label">API endpoint (base URL)</label>
+            <input
+              className="input font-mono text-sm"
+              type="text"
+              placeholder="https://api.x.ai/v1 (default)"
+              value={apiEndpoint}
+              onChange={(e) => setApiEndpoint(e.target.value)}
+              disabled={busy}
+              spellCheck={false}
+              autoComplete="off"
+            />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Any OpenAI-compatible endpoint works — OpenRouter, Together, a local Ollama gateway, etc.
+              Leave blank to use the xAI default. The endpoint is stored plainly (not masked).
+            </p>
           </div>
 
           <div>

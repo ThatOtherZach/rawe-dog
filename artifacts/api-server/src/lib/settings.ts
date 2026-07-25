@@ -12,6 +12,11 @@ export type AppSettings = {
   verificationModel: string;
   /** TheirStack API key for the Postings page job search. */
   theirstackApiKey: string;
+  /**
+   * Optional OpenAI-compatible base URL for LLM calls. Empty = use the
+   * XAI_BASE_URL env hook, then fall back to https://api.x.ai/v1.
+   */
+  apiEndpoint: string;
 };
 
 const DEFAULT_MODEL = "grok-4.5";
@@ -23,6 +28,8 @@ export function getDefaultSettings(): AppSettings {
     selectionModel: process.env["XAI_SELECTION_MODEL"]?.trim() || "",
     verificationModel: process.env["XAI_VERIFICATION_MODEL"]?.trim() || "",
     theirstackApiKey: process.env["THEIRSTACK_API_KEY"]?.trim() || "",
+    // No env default — apiEndpoint is intentionally user-only; env uses XAI_BASE_URL.
+    apiEndpoint: "",
   };
 }
 
@@ -40,6 +47,7 @@ export function loadSettings(): AppSettings {
       selectionModel: (raw.selectionModel ?? defaults.selectionModel).trim(),
       verificationModel: (raw.verificationModel ?? defaults.verificationModel).trim(),
       theirstackApiKey: (raw.theirstackApiKey ?? defaults.theirstackApiKey).trim(),
+      apiEndpoint: (raw.apiEndpoint ?? defaults.apiEndpoint).trim(),
     };
   } catch {
     return defaults;
@@ -67,6 +75,10 @@ export function saveSettings(partial: Partial<AppSettings>): AppSettings {
       partial.theirstackApiKey !== undefined
         ? partial.theirstackApiKey.trim()
         : current.theirstackApiKey,
+    apiEndpoint:
+      partial.apiEndpoint !== undefined
+        ? partial.apiEndpoint.trim()
+        : current.apiEndpoint,
   };
   mkdirSync(getDataRoot(), { recursive: true });
   writeFileSync(getSettingsPath(), JSON.stringify(next, null, 2), "utf8");
@@ -89,6 +101,8 @@ export function publicSettings() {
     verificationModel: s.verificationModel,
     hasTheirstackKey: Boolean(s.theirstackApiKey),
     theirstackKeyMasked: maskApiKey(s.theirstackApiKey),
+    // Shown plainly — not a secret.
+    apiEndpoint: s.apiEndpoint,
   };
 }
 
