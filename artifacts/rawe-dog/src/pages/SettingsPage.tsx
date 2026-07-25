@@ -428,12 +428,12 @@ export default function SettingsPage() {
               {busy ? "Testing…" : "Test connection"}
             </button>
             {settings?.hasApiKey && (
-              <button className="btn" onClick={() => void clearKey()} disabled={busy}>
+              <button className="btn btn-danger" onClick={() => void clearKey()} disabled={busy}>
                 Clear xAI key
               </button>
             )}
             {settings?.hasTheirstackKey && (
-              <button className="btn" onClick={() => void clearTheirstackKey()} disabled={busy}>
+              <button className="btn btn-danger" onClick={() => void clearTheirstackKey()} disabled={busy}>
                 Clear TheirStack key
               </button>
             )}
