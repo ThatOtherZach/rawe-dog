@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { awardXp } from "../lib/xpStore";
 
 type PublicSettings = {
   hasApiKey: boolean;
@@ -90,10 +91,16 @@ export default function SettingsPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error((data as { error?: string }).error || "Save failed");
-    syncFromSettings(data as PublicSettings);
-    if (keyToSend.trim()) { setApiKey(""); setShowXaiInput(false); }
+    const saved = data as PublicSettings;
+    syncFromSettings(saved);
+    // XP: first API key saved
+    if (keyToSend.trim()) {
+      awardXp("api_key_saved");
+      setApiKey("");
+      setShowXaiInput(false);
+    }
     if (theirstackKey.trim()) { setTheirstackKey(""); setShowTheirstackInput(false); }
-    return data as PublicSettings;
+    return saved;
   }
 
   async function onSave() {
@@ -202,6 +209,8 @@ export default function SettingsPage() {
       setWipeConfirmText("");
       // Refresh settings to reflect clean state
       void refresh();
+      // XP: burned it down
+      if (data.allOk) awardXp("data_wipe");
     } catch (err) {
       setWipeError(err instanceof Error ? err.message : String(err));
     } finally {

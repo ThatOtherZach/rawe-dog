@@ -1,9 +1,13 @@
+import { useEffect } from "react";
 import { Route, Switch, Router as WouterRouter } from "wouter";
 import { Nav } from "./components/Nav";
+import { AchievementToast } from "./components/AchievementToast";
+import { XpWidget } from "./components/XpWidget";
 import GeneratePage from "./pages/GeneratePage";
 import LibraryPage from "./pages/LibraryPage";
 import PostingsPage from "./pages/PostingsPage";
 import SettingsPage from "./pages/SettingsPage";
+import { checkIdleReturn } from "./lib/xpStore";
 
 function NotFound() {
   return (
@@ -31,6 +35,11 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    // Check for the "7 days away" achievement on load
+    checkIdleReturn();
+  }, []);
+
   return (
     <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <div className="min-h-screen">
@@ -38,6 +47,9 @@ function App() {
         <main className="mx-auto w-full max-w-6xl px-4 pb-16">
           <Router />
         </main>
+        {/* XP layer — fixed, outside normal flow */}
+        <XpWidget />
+        <AchievementToast />
       </div>
     </WouterRouter>
   );

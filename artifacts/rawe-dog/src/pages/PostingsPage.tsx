@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { SearchCreditsPanel } from "../components/SearchCreditsPanel";
 import { searchCreditHeader } from "../lib/credits";
+import { awardXp } from "../lib/xpStore";
 
 const SENIORITY_OPTIONS = [
   { value: "junior", label: "Junior" },
@@ -483,6 +484,9 @@ export default function PostingsPage() {
           ? `Filters derived — ${rationale} Review below, then save.`
           : "Filters derived from your Master Profile. Review below, then save."
       );
+      // XP: derive filters (first time) + filter change
+      awardXp("derive_filters");
+      awardXp("filter_change");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -511,6 +515,8 @@ export default function PostingsPage() {
       applyState(data as PostingsState);
       setEditing(false);
       setMessage("Filters saved. Refresh to fetch matching postings.");
+      // XP: manual filter change
+      awardXp("filter_change");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -553,6 +559,8 @@ export default function PostingsPage() {
           ? `Fetched ${st.fetched} posting${st.fetched === 1 ? "" : "s"} (${st.added} new) · fit-scored ${st.scored}.`
           : "Postings refreshed."
       );
+      // XP: paid search run
+      awardXp("paid_search");
       const w = (data as { warning?: string }).warning;
       if (w) setWarning(w);
       const sf = (data as { scoreFailures?: string[] }).scoreFailures;
@@ -603,6 +611,16 @@ export default function PostingsPage() {
         throw new Error((data as { error?: string }).error || "Status update failed");
       }
       applyState(data as PostingsState);
+      // XP: applied or dismissed
+      if (status === "applied") {
+        const posting = state?.postings.find((p) => p.id === id);
+        awardXp("applied", {
+          postingId: id,
+          fitScore: posting?.score ?? undefined,
+        });
+      } else if (status === "dismissed") {
+        awardXp("dismiss");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1050,6 +1068,7 @@ export default function PostingsPage() {
                 a.href = "/api/postings/export.csv";
                 a.download = "applied-jobs.csv";
                 a.click();
+                awardXp("csv_exported");
               }}
               title={`Download CSV of ${counts.appliedCount} applied posting${counts.appliedCount === 1 ? "" : "s"}`}
             >

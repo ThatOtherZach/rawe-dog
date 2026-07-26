@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { awardXp } from "../lib/xpStore";
 import { MarkdownView } from "../components/MarkdownView";
 
 type Health = {
@@ -202,6 +203,8 @@ export default function GeneratePage() {
   const cancelRef = useRef<AbortController | null>(null);
   /** Brief "Run cancelled" notice shown after the user aborts a run. */
   const [cancelledNotice, setCancelledNotice] = useState(false);
+  /** Ref always reflects the current linkedPosting id so handleEvent (memoised with []) can read it. */
+  const linkedPostingIdRef = useRef<string | null>(null);
   /**
    * Whether the user has explicitly confirmed they want to proceed despite a
    * "suspicious" legitimacy flag on the linked posting.  Reset whenever the
@@ -400,6 +403,8 @@ export default function GeneratePage() {
       case "done": {
         terminalSeen.current = true;
         clearProgressTimer();
+        // Award XP for kit generation
+        awardXp("kit_generated", { postingId: linkedPostingIdRef.current ?? undefined });
         setKit(ev.kit);
         setSelection(ev.selection);
         if (ev.experienceOptions?.length) setExpOptions(ev.experienceOptions);
@@ -524,6 +529,11 @@ export default function GeneratePage() {
       ? { postingId: linkedPosting.id, company, targetTitle, notes }
       : { jobPosting, company, targetTitle, notes };
   }
+
+  // Keep ref in sync so handleEvent (memoised with [] deps) can always read current id.
+  useEffect(() => {
+    linkedPostingIdRef.current = linkedPosting?.id ?? null;
+  }, [linkedPosting?.id]);
 
   // Reset confirmation any time a different posting is linked (or unlinked).
   useEffect(() => {

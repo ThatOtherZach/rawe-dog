@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ComposeWizard, type ComposeSlot } from "../components/ComposeWizard";
+import { awardXp } from "../lib/xpStore";
 
 type SlotInfo = {
   slot: string;
@@ -93,9 +94,11 @@ export default function LibraryPage() {
       fetch("/api/library"),
       fetch("/api/settings"),
     ]);
-    setData(await libRes.json());
+    const libData = (await libRes.json()) as LibraryResponse;
+    setData(libData);
     const settings = (await settingsRes.json()) as { hasApiKey?: boolean };
     setHasApiKey(Boolean(settings.hasApiKey));
+    return libData;
   }, []);
 
   useEffect(() => {
@@ -116,7 +119,13 @@ export default function LibraryPage() {
         const json = await res.json();
         if (!res.ok) throw new Error((json as { error?: string }).error || "Upload failed");
       }
-      await refresh();
+      const freshData = await refresh();
+      // Count all knowledge files for the Librarian achievement
+      const knowledgeFileCount = (KNOWLEDGE_SLOTS as readonly string[]).reduce(
+        (sum, s) => sum + (freshData?.files[s]?.length ?? 0),
+        0
+      );
+      awardXp("file_upload", { knowledgeFileCount });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -443,7 +452,10 @@ export default function LibraryPage() {
           hasExisting={(data?.files[composeSlot.slot] || []).length > 0}
           hasApiKey={hasApiKey}
           onClose={() => setComposeSlot(null)}
-          onSaved={refresh}
+          onSaved={async () => {
+            await refresh();
+            awardXp("compose_doc");
+          }}
         />
       )}
     </div>
