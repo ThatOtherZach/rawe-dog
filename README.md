@@ -1,129 +1,144 @@
-# RAWE-DOG
-**R**esume **A**nd **W**ork **E**xperience - **D**ocument **O**utput **G**enerator
+# rawe-dog
 
-**A Personal AI Hiring Manager**
+> Open-source framework for generating ATS-optimized, grounded resumes using AI models.
 
-RAWE-DOG is an open-source framework that turns your career history into high-quality, ATS-optimized resumes, cover letters, and career documents using **any AI or LLM** you want.
+![GitHub stars](https://img.shields.io/github/stars/ThatOtherZach/rawe-dog?style=for-the-badge&logo=github) ![GitHub forks](https://img.shields.io/github/forks/ThatOtherZach/rawe-dog?style=for-the-badge&logo=github) ![GitHub issues](https://img.shields.io/github/issues/ThatOtherZach/rawe-dog?style=for-the-badge&logo=github) ![Last commit](https://img.shields.io/github/last-commit/ThatOtherZach/rawe-dog?style=for-the-badge&logo=github) ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 
-It works by giving the model a structured "Master Profile" + detailed experience files instead of hoping a generic prompt will remember who you are. The result is output that actually sounds like you and is grounded in your real achievements using a library of additional files to support the resume generation.
+## 📑 Table of Contents
 
-## Why This Exists
+- [Description](#description)
+- [Key Features](#key-features)
+- [Use Cases](#use-cases)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Key Dependencies](#key-dependencies)
+- [Available Scripts](#available-scripts)
+- [API Endpoints](#api-endpoints)
+- [Project Structure](#project-structure)
+- [Development Setup](#development-setup)
+- [Contributors](#contributors)
+- [Contributing](#contributing)
+- [License](#license)
 
-Most AI resume tools are either:
-- Generic or
-- Require you to paste your entire life story every time.
+## 📝 Description
 
-RAWE-DOG takes the opposite approach: **you build a high-quality knowledge base once**, then use it with whatever LLM you trust (Claude, GPT, Grok, local models, custom, sock puppets, IDC, etc.). The framework tells the model how to think about your experience in a contextual way.
+RAWE-DOG (Resume And Work Experience - Document Output Generator) is an open-source framework designed to build high-quality, ATS-optimized resumes and career documents. Instead of relying on generic LLM prompts that risk hallucinating achievements, RAWE-DOG anchors generative models in a structured personal knowledge base to produce authentic, role-aligned career materials.
 
-## How It Works
+The framework structures personal career data into three core layers: a Master Profile for alignment rules and skill indexes, System Instructions to direct LLMs as virtual hiring managers, and detailed Experience Files containing S.T.A.R. stories. The repository is structured as a TypeScript monorepo featuring an Express API server with Pino logging and CORS support, alongside a React interface powered by Vite for document prototyping.
 
-The system has three layers:
+RAWE-DOG is designed for job seekers, technical professionals, and privacy-conscious users who want full ownership of their personal data and prefer leveraging their own preferred LLM providers over third-party SaaS resume tools.
 
-1. **Master Profile** Your strategic source of truth. Contains alignment tables, tone rules, skill indexes, and guidance on which parts of your history to emphasize for different roles.
-2. **System Instructions** A set of rules that turn any AI or LLM into a competent, consistent "hiring manager" who knows how to select and frame your experience.
-3. **Experience Files** Rich, detailed write-ups of your actual work (projects, impact, S.T.A.R. stories). These are what stop the AI or LLM from hallucinating or being generic; locking in to applicable skills.
+## ✨ Key Features
 
-## Who This Is For
+- **🗂️ Three Layer Knowledge Architecture** — Organizes career history using a Master Profile, System Instructions, and granular Experience Files to keep LLM outputs factual.
+- **⚡ Express REST API Server** — Provides an Express-based API server artifact configured with CORS support and structured Pino HTTP request logging.
+- **🖥️ React Mockup Sandbox Interface** — Includes a Vite-powered React frontend sandbox for testing and prototyping document layouts and previews.
+- **🛠️ TypeScript Monorepo Workspace** — Uses pnpm workspaces with shared base TypeScript configurations and modular build scripts.
+- **🤖 Model Agnostic Framework** — Formats career data into system and experience prompts compatible with any LLM provider or local model.
 
-- People who want **much better** output than generic AI/LLM resume tools
-- Technical professionals, career changers, and anyone tired of generic bullet points
-- Power users who already work with AIs or LLMs and want structure + grounding
-- People who value owning their data and not feeding it to random web apps
+## 🎯 Use Cases
 
-**Note:** This framework rewards effort. The better your Master Profile and experience files, the better the output. It's not zero-effort magic. It's your data, take as many or as few precautions as you feel necessary.
+- Generating targeted, ATS-optimized resumes and cover letters grounded in verifiable personal achievements.
+- Maintaining a single source of truth for career history, S.T.A.R. impact stories, and skill alignment tables.
+- Prototyping custom resume rendering and career document output pipelines via the Express API server.
 
-## Quick Start (framework for any AI or LLM)
+## 🛠️ Tech Stack
 
-1. Copy the templates:
-   ```bash
-   cp templates/master-profile.md .
-   mkdir -p references
-   cp templates/experience-file.md references/your-role-experience.md
-   ```
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
-2. Fill out `master-profile.md` with information as you see fit (detailed is better).
+## 🏗️ Architecture
 
-3. Create detailed experience files in the `references/` folder for your key roles.
+A high-level view of how the main pieces fit together:
 
-4. Feed the whole thing to your LLM of choice along with the system prompt in `prompts/system-prompt.md`.
+```mermaid
+flowchart TD
+    User["👤 User / Browser"]
+    API["⚙️ API Server"]
+    User --> API
+```
 
-5. Start tailoring resumes for specific jobs.
-
-See the [full example](./examples/full-example) to understand what good input looks like.
-
-## Local App (xAI)
-
-A local Next.js app lives in [`web/`](./web). Paste a job posting, upload your Master Profile / experience / templates (MD or PDF), and generate a full application kit via the xAI API with **immutable guardrails** and a **two-pass, accuracy-first** context pack.
+## ⚡ Quick Start
 
 ```bash
-cd web
+
+# 1. Clone the repository
+git clone https://github.com/ThatOtherZach/rawe-dog.git
+
+# 2. Install dependencies
 npm install
+
+# 3. Start the dev server
 npm run dev
 ```
 
-| Doc | Audience |
-| --- | --- |
-| [web/README.md](./web/README.md) | Runbook: Settings, Library, Generate, export, privacy |
-| [web/docs/FOR_AI_REVIEWERS.md](./web/docs/FOR_AI_REVIEWERS.md) | **AI / code review handoff** — architecture, pipeline, git safety, file index |
-| [web/AGENTS.md](./web/AGENTS.md) | Short rules for coding agents working in `web/` |
-
-Personal uploads and API keys live only under **gitignored** `web/data/` — never commit that directory.
-
-## Repository Structure
+## 📦 Key Dependencies
 
 ```
-rawe-dog/
-├── README.md
-├── LICENSE
-├── DONATE.md
-├── web/                         # Local Next.js app (xAI generate + export)
-│   ├── app/                     # UI + API routes
-│   ├── lib/                     # Generate, library, export, xAI
-│   ├── docs/FOR_AI_REVIEWERS.md # Handoff for AI/code review
-│   ├── public/starters/         # Generic templates (no personal PII)
-│   └── data/                    # GITIGNORED: keys + personal uploads
-├── templates/
-│   ├── master-profile.md
-│   └── experience-file.md
-├── prompts/
-│   ├── system-prompt.md
-│   └── tailoring-workflow.md
-├── guides/
-│   ├── how-to-build-your-profile.md
-│   ├── writing-good-experience-files.md
-│   ├── using-with-different-llms.md
-│   └── privacy-and-security.md
-├── examples/
-│   ├── minimal-example/
-│   └── full-example/
-└── advanced/
-    └── notion-integration.md
+@replit/connectors-sdk: ^0.4.1
 ```
 
-## Privacy & Safety
+## 🚀 Available Scripts
 
-Your career history is sensitive data. This framework is designed to be used **locally or in private contexts**.
+- **preinstall** — `npm run preinstall`
+- **build** — `npm run build`
+- **typecheck:libs** — `npm run typecheck:libs`
+- **typecheck** — `npm run typecheck`
 
-- Never commit your real `master-profile.md` or `references/` folder to a public repo.
-- Consider using local LLMs (Ollama, LM Studio, etc.) for maximum privacy.
-- The `.gitignore` is set up to help protect you.
+## 🌐 API Endpoints
 
-Read `guides/privacy-and-security.md` before putting real information in here.
+Detected endpoints (best-effort scan):
 
-## Contributing
+```
+/api/export
+/api/generate
+/api/health
+/api/library/file
+/api/library
+/api/settings
+```
 
-Improvements to the framework, templates, prompts, and guides are very welcome. The goal is to make high-quality, grounded career document generation more accessible without forcing people to hand their data to third parties. Own your data.
+## 🛠️ Development Setup
 
-## License
+### Node.js / JavaScript
+1. Install Node.js (v18+ recommended)
+2. Install dependencies: `npm install` (or `yarn` / `pnpm install` / `bun install`)
+3. Start the dev server: see the **Quick Start** above
 
-MIT License — see [LICENSE](LICENSE) file.
+## 👥 Contributors
 
-## Credits
+Thanks to everyone who has contributed to this project:
 
-Originally inspired by a personalized internal system. Released publicly because good tools shouldn't stay locked in one person's workflow and I can't be bothered to try to make a product that would require so much detailed personal information to be profitable - it was more than a wee bit scummy :P
+<p align="left">
+<a href="https://github.com/replit-agent" title="replit-agent"><img src="https://avatars.githubusercontent.com/u/207944715?v=4&s=64" width="64" height="64" alt="replit-agent" style="border-radius:50%" /></a>
+<a href="https://github.com/ThatOtherZach" title="ThatOtherZach"><img src="https://avatars.githubusercontent.com/u/4349537?v=4&s=64" width="64" height="64" alt="ThatOtherZach" style="border-radius:50%" /></a>
+</p>
 
-Use it and hit'em with that RAWE Dog, or don't; you do you.
+[See the full list of contributors →](https://github.com/ThatOtherZach/rawe-dog/graphs/contributors)
 
-**— [@ThatOtherZach](https://x.com/ThatOtherZach)**
+## 👥 Contributing
 
-If this saves you time or helps you get interviews, you're welcome to send some crypto via the address in [DONATE.md](DONATE.md).
+Contributions are welcome! Here's the standard flow:
+
+1. **Fork** the repository
+2. **Clone** your fork: `git clone https://github.com/ThatOtherZach/rawe-dog.git`
+3. **Branch**: `git checkout -b feature/your-feature`
+4. **Commit**: `git commit -m 'feat: add some feature'`
+5. **Push**: `git push origin feature/your-feature`
+6. **Open** a pull request
+
+Please follow the existing code style and include tests for new behavior where applicable.
+
+## 📜 License
+
+This project is licensed under the **MIT** License.
+
+---
+
+<div align="center">
+
+[![Made with ReadmeBuddy](https://img.shields.io/badge/Made%20with-ReadmeBuddy-8B5CFF?style=for-the-badge&logo=markdown&logoColor=white)](https://readmebuddy.com)
+
+<sub>Generate beautiful READMEs in seconds → <a href="https://readmebuddy.com">readmebuddy.com</a></sub>
+
+</div>
