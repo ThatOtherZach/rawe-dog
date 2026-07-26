@@ -1,3 +1,15 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Dark rounded-square frame -->
+  <rect width="64" height="64" rx="14" fill="#0c0e13"/>
+  <!-- Toe beans scaled to fit the frame -->
+  <!-- Far left toe -->
+  <rect x="3" y="18" width="12" height="14" rx="6" fill="#FF3C00" transform="rotate(-20 9 25)"/>
+  <!-- Left toe -->
+  <rect x="14" y="9" width="12" height="14" rx="6" fill="#FF3C00" transform="rotate(-7 20 16)"/>
+  <!-- Right toe -->
+  <rect x="38" y="9" width="12" height="14" rx="6" fill="#FF3C00" transform="rotate(7 44 16)"/>
+  <!-- Far right toe -->
+  <rect x="49" y="18" width="12" height="14" rx="6" fill="#FF3C00" transform="rotate(20 55 25)"/>
+  <!-- Main pad -->
+  <ellipse cx="32" cy="47" rx="16" ry="13" fill="#FF3C00"/>
 </svg>

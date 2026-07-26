@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <!-- Dark background -->
+  <rect width="1200" height="630" fill="#0c0e13"/>
+
+  <!-- Orange vertical accent bar -->
+  <rect x="200" y="165" width="4" height="300" fill="#FF3C00"/>
+
+  <!-- Paw mark: ~120x120, left-center at x=80, y=255 -->
+  <g transform="translate(68, 220) scale(1.9)">
+    <!-- Far left toe -->
+    <rect x="3" y="18" width="12" height="14" rx="6" fill="#FF3C00" transform="rotate(-20 9 25)"/>
+    <!-- Left toe -->
+    <rect x="14" y="9" width="12" height="14" rx="6" fill="#FF3C00" transform="rotate(-7 20 16)"/>
+    <!-- Right toe -->
+    <rect x="38" y="9" width="12" height="14" rx="6" fill="#FF3C00" transform="rotate(7 44 16)"/>
+    <!-- Far right toe -->
+    <rect x="49" y="18" width="12" height="14" rx="6" fill="#FF3C00" transform="rotate(20 55 25)"/>
+    <!-- Main pad -->
+    <ellipse cx="32" cy="47" rx="16" ry="13" fill="#FF3C00"/>
+  </g>
+
+  <!-- "RAWE Dog" wordmark -->
+  <text
+    x="228"
+    y="290"
+    font-family="Inter, Helvetica Neue, Arial, sans-serif"
+    font-weight="700"
+    font-size="84"
+    fill="#FFFFFF"
+    letter-spacing="-2"
+  >RAWE Dog</text>
+
+  <!-- Tagline -->
+  <text
+    x="230"
+    y="365"
+    font-family="Inter, Helvetica Neue, Arial, sans-serif"
+    font-weight="400"
+    font-size="34"
+    fill="#6b7280"
+  >Paste a job. Get a tailored kit.</text>
+</svg>

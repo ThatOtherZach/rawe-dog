@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Toe beans: four rounded rectangles arranged in an arc above the main pad -->
+  <!-- Far left toe -->
+  <rect x="4" y="18" width="14" height="17" rx="7" fill="#FF3C00" transform="rotate(-20 11 26.5)"/>
+  <!-- Left toe -->
+  <rect x="16" y="8" width="14" height="17" rx="7" fill="#FF3C00" transform="rotate(-7 23 16.5)"/>
+  <!-- Right toe -->
+  <rect x="34" y="8" width="14" height="17" rx="7" fill="#FF3C00" transform="rotate(7 41 16.5)"/>
+  <!-- Far right toe -->
+  <rect x="46" y="18" width="14" height="17" rx="7" fill="#FF3C00" transform="rotate(20 53 26.5)"/>
+  <!-- Main pad: large oval -->
+  <ellipse cx="32" cy="46" rx="18" ry="15" fill="#FF3C00"/>
+</svg>

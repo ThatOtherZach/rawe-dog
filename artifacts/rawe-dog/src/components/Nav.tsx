@@ -13,9 +13,7 @@ export function Nav() {
   return (
     <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--panel-2)] text-sm font-bold text-[var(--accent)]">
-          RD
-        </div>
+        <img src="/logo-mark.svg" alt="RAWE Dog" className="h-9 w-9" />
         <div>
           <div className="text-sm font-semibold tracking-wide">RAWE-DOG</div>
           <div className="text-xs text-[var(--muted)]">Resume And Work Experience - Document Output Generator</div>
