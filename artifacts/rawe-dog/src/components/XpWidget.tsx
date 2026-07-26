@@ -185,13 +185,12 @@ function ProfilePanel({ profile, onClose }: { profile: Profile; onClose: () => v
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-
       {/* Panel */}
       <div className="relative z-10 flex h-full max-h-screen w-full max-w-sm flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--bg)] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold">XP Profile</h2>
+            <h2 className="text-base font-semibold">RAWE-DOG XP</h2>
             <p className="text-xs text-[var(--muted)]">Office Space edition</p>
           </div>
           <button
