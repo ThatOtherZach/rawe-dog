@@ -75,6 +75,12 @@ export type GenerateInput = {
   overrideLeads?: string[];
   skipPass1?: boolean;
   /**
+   * When true, skip verification (Pass 3) and repair (Pass 4) entirely.
+   * Set by the route for paste-sourced kits (no postingId) — the user
+   * supplied the description directly and is expected to review the output.
+   */
+  skipVerification?: boolean;
+  /**
    * Optional abort signal threaded from the route layer. When the client
    * disconnects (or clicks Cancel), the signal fires and every in-flight
    * xAI call is aborted immediately — no more tokens billed for a run
@@ -574,61 +580,92 @@ async function finishKitPipeline(args: {
   const { ctx, options, input, emit, t0 } = args;
 
   const drafts = await runDraftStage(ctx, input, args.selection, emit);
-  const ver = await runVerificationStage(
-    ctx,
-    input,
-    drafts.selection,
-    drafts.resolved,
-    drafts.kit,
-    emit
-  );
 
-  let report = buildQaReport({
-    kit: drafts.kit,
-    selection: drafts.selection,
-    verifier: ver.verifier,
-    repairedDocuments: [],
-    verifierUnavailableReason: ver.unavailableReason,
-  });
-  emit?.({ type: "qa", report });
+  let report: ReturnType<typeof buildQaReport>;
+  let kit = drafts.kit;
+  let verifyChars = 0;
+  let repairedDocuments: DocKey[] = [];
+  let repairFailures: string[] = [];
+  let pass2Retried = drafts.anyRetried;
 
-  const rep = await runRepairStage(
-    ctx,
-    input,
-    drafts.selection,
-    drafts.resolved,
-    drafts.kit,
-    report,
-    emit
-  );
+  if (input.skipVerification) {
+    // Paste-sourced kit: skip verification and repair entirely. Emit a minimal
+    // QA report so the client has a non-null report and the Quality tab
+    // renders cleanly with a "skipped" notice instead of an empty state.
+    report = {
+      verdict: "pass",
+      summary:
+        "Verification skipped — you supplied the description directly. Review the output before submitting.",
+      findings: [],
+      keywordCoverage: [],
+      repairedDocuments: [],
+      counts: { major: 0, minor: 0, info: 0 },
+      verifierRan: false,
+      skipped: true,
+    };
+    emit?.({ type: "qa", report });
+  } else {
+    const ver = await runVerificationStage(
+      ctx,
+      input,
+      drafts.selection,
+      drafts.resolved,
+      drafts.kit,
+      emit
+    );
+    verifyChars = ver.chars;
 
-  let kit = rep.kit;
-  if (rep.repaired.length) {
     report = buildQaReport({
-      kit,
+      kit: drafts.kit,
       selection: drafts.selection,
       verifier: ver.verifier,
-      repairedDocuments: rep.repaired,
+      repairedDocuments: [],
       verifierUnavailableReason: ver.unavailableReason,
     });
     emit?.({ type: "qa", report });
+
+    const rep = await runRepairStage(
+      ctx,
+      input,
+      drafts.selection,
+      drafts.resolved,
+      drafts.kit,
+      report,
+      emit
+    );
+
+    kit = rep.kit;
+    repairedDocuments = rep.repaired;
+    repairFailures = rep.failures;
+    pass2Retried = drafts.anyRetried || rep.anyRetried;
+
+    if (rep.repaired.length) {
+      report = buildQaReport({
+        kit: rep.kit,
+        selection: drafts.selection,
+        verifier: ver.verifier,
+        repairedDocuments: rep.repaired,
+        verifierUnavailableReason: ver.unavailableReason,
+      });
+      emit?.({ type: "qa", report });
+    }
   }
 
   const pass2Chars =
-    Object.values(drafts.draftChars).reduce((a, b) => a + (b || 0), 0) + rep.chars;
+    Object.values(drafts.draftChars).reduce((a, b) => a + (b || 0), 0);
 
   const stats: GenerateStats = {
     pass1Chars: args.pass1Stats.pass1Chars,
     pass2Chars,
-    verifyChars: ver.chars,
+    verifyChars,
     draftChars: drafts.draftChars,
     leadCount: drafts.resolved.leads.length,
     experienceTotal: ctx.experiences.length,
     skippedPass1: args.pass1Stats.skippedPass1,
     pass1Retried: args.pass1Stats.retried,
-    pass2Retried: drafts.anyRetried || rep.anyRetried,
-    repairedDocuments: rep.repaired,
-    repairFailures: rep.failures,
+    pass2Retried,
+    repairedDocuments,
+    repairFailures,
     models: {
       selection: args.pass1Stats.selectionModel,
       drafting: getModelForStage("drafting"),

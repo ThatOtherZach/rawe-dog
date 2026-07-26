@@ -55,6 +55,11 @@ router.post("/generate", async (req: Request, res: Response) => {
       notes: body.notes,
       overrideLeads: body.overrideLeads,
       skipPass1: body.skipPass1,
+      // Paste kits (no postingId) skip verification and repair — the user
+      // supplied the description themselves and will review the output directly.
+      // Posting-sourced kits always verify: ATS keyword coverage matters when
+      // the brief was model-extracted.
+      skipVerification: !body.postingId,
     };
 
     // ID-only posting handoff: the client sends just a posting id and the

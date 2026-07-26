@@ -29,10 +29,11 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 ## Architecture decisions
 
 ### Kit generation pipeline
-- Atomized generation: one selection call → four parallel per-document draft calls → one verification call → targeted repair of flagged docs (max one round). All stages use API-enforced JSON schemas (`response_format: json_schema, strict`) with json_object fallback, truncation retry, and cheap malformed-JSON repair.
+- Atomized generation: one selection call → four parallel per-document draft calls → (for posting-sourced kits) one verification call → targeted repair of flagged docs (max one round). All stages use API-enforced JSON schemas (`response_format: json_schema, strict`) with json_object fallback, truncation retry, and cheap malformed-JSON repair.
+- **Verification is source-gated**: posting-sourced kits (`postingId` present) run the full pipeline including verification (Pass 3) and repair (Pass 4) — ATS keyword grounding matters when the brief was model-extracted. Paste-sourced kits (no `postingId`) skip verification and repair entirely; the pipeline ends after drafting. The `done` SSE event fires immediately after drafting for paste kits.
 - Experiences are selected by stable catalog IDs (E1, E2, … assigned by library file id order); the selection schema constrains IDs via enum, and zero resolved leads is a hard 400 — no silent fallback.
 - Per-stage models: settings support optional fast models for selection/verification; drafting uses the premium model.
-- Progressive delivery over SSE (`mode: "stream"` on POST /api/generate): status/pass1/draft/qa/repair/done events; UI fills kit tabs as drafts land and shows a QA report panel.
+- Progressive delivery over SSE (`mode: "stream"` on POST /api/generate): status/pass1/draft/qa/repair/done events; UI fills kit tabs as drafts land and shows a QA report panel. For paste kits, the `qa` event carries `skipped: true` and the Quality tab shows a "Verification not run" notice instead of findings.
 
 ### Postings & job discovery
 - **Explicit refresh model**: jobs are fetched only when the user triggers a refresh (no background polling). Postings are deduped by internal ID and survive refreshes — only new IDs are added; statuses are never clobbered.

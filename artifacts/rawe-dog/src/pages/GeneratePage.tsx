@@ -94,6 +94,8 @@ type QaReport = {
   repairedDocuments: DocKey[];
   counts: { major: number; minor: number; info: number };
   verifierRan: boolean;
+  /** True when verification was intentionally skipped (paste-sourced kit). */
+  skipped?: boolean;
 };
 
 type GenStats = {
@@ -1231,11 +1233,14 @@ export default function GeneratePage() {
               {(stage === "verifying" || stage === "repairing") && !qaReport && (
                 <span className="ml-1.5 inline-block animate-pulse text-[var(--muted)]">…</span>
               )}
-              {qaReport && qaReport.counts.major > 0 && (
+              {qaReport && !qaReport.skipped && qaReport.counts.major > 0 && (
                 <span className="ml-1.5 text-xs text-[#ffd28f]">{qaReport.counts.major} major</span>
               )}
-              {qaReport && qaReport.counts.major === 0 && qaReport.verdict !== "issues_found" && (
+              {qaReport && !qaReport.skipped && qaReport.counts.major === 0 && qaReport.verdict !== "issues_found" && (
                 <span className="ml-1.5 text-xs text-[var(--accent)]">✓</span>
+              )}
+              {qaReport?.skipped && (
+                <span className="ml-1.5 text-xs text-[var(--muted)]">skipped</span>
               )}
             </button>
           </div>
@@ -1300,106 +1305,117 @@ export default function GeneratePage() {
               {/* header badges */}
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 {qaReport ? (
-                  <>
-                    <span
-                      className={`badge ${
-                        qaReport.verdict === "pass" || qaReport.verdict === "repaired"
-                          ? "badge-ok"
-                          : "badge-bad"
-                      }`}
-                    >
-                      {qaReport.verdict === "pass"
-                        ? "Passed"
-                        : qaReport.verdict === "repaired"
-                          ? "Repaired"
-                          : "Issues found"}
-                    </span>
-                    <span className="badge">
-                      {qaReport.counts.major} major · {qaReport.counts.minor} minor ·{" "}
-                      {qaReport.counts.info} info
-                    </span>
-                    {!qaReport.verifierRan && (
-                      <span className="badge badge-bad">automated checks only</span>
-                    )}
-                  </>
+                  qaReport.skipped ? (
+                    <span className="badge">Skipped</span>
+                  ) : (
+                    <>
+                      <span
+                        className={`badge ${
+                          qaReport.verdict === "pass" || qaReport.verdict === "repaired"
+                            ? "badge-ok"
+                            : "badge-bad"
+                        }`}
+                      >
+                        {qaReport.verdict === "pass"
+                          ? "Passed"
+                          : qaReport.verdict === "repaired"
+                            ? "Repaired"
+                            : "Issues found"}
+                      </span>
+                      <span className="badge">
+                        {qaReport.counts.major} major · {qaReport.counts.minor} minor ·{" "}
+                        {qaReport.counts.info} info
+                      </span>
+                      {!qaReport.verifierRan && (
+                        <span className="badge badge-bad">automated checks only</span>
+                      )}
+                    </>
+                  )
                 ) : (
                   <span className="badge animate-pulse">Verifying…</span>
                 )}
               </div>
 
               {qaReport && (
-                <>
-                  <p className="mb-4 text-sm text-[var(--muted)]">{qaReport.summary}</p>
+                qaReport.skipped ? (
+                  <div className="rounded-lg border border-[var(--border)] bg-[#12151c] px-4 py-4 text-sm text-[var(--muted)]">
+                    <p className="mb-1 font-medium text-[var(--text)]">Verification not run</p>
+                    <p>{qaReport.summary}</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="mb-4 text-sm text-[var(--muted)]">{qaReport.summary}</p>
 
-                  {qaReport.repairedDocuments.length > 0 && (
-                    <p className="mb-3 text-xs text-[var(--accent)]">
-                      Repaired: {qaReport.repairedDocuments.map((d) => DOC_LABELS[d]).join(", ")}
-                    </p>
-                  )}
+                    {qaReport.repairedDocuments.length > 0 && (
+                      <p className="mb-3 text-xs text-[var(--accent)]">
+                        Repaired: {qaReport.repairedDocuments.map((d) => DOC_LABELS[d]).join(", ")}
+                      </p>
+                    )}
 
-                  {qaReport.keywordCoverage.length > 0 && (
-                    <div className="mb-4">
-                      <p className="label mb-1.5">Keyword coverage (resume + cover letter)</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {qaReport.keywordCoverage.map((k) => (
-                          <span
-                            key={k.keyword}
-                            className={`rounded-full border px-2.5 py-0.5 text-xs ${
-                              k.covered
-                                ? "border-[color-mix(in_srgb,var(--accent)_50%,var(--border))] text-[var(--accent)]"
-                                : "border-[#7a5c2e] text-[#ffd28f]"
-                            }`}
-                            title={
-                              k.covered
-                                ? `In ${[k.inResume && "resume", k.inCoverLetter && "cover letter"].filter(Boolean).join(" + ")}`
-                                : "Not found in resume or cover letter"
-                            }
-                          >
-                            {k.covered ? "✓" : "✗"} {k.keyword}
-                          </span>
-                        ))}
+                    {qaReport.keywordCoverage.length > 0 && (
+                      <div className="mb-4">
+                        <p className="label mb-1.5">Keyword coverage (resume + cover letter)</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {qaReport.keywordCoverage.map((k) => (
+                            <span
+                              key={k.keyword}
+                              className={`rounded-full border px-2.5 py-0.5 text-xs ${
+                                k.covered
+                                  ? "border-[color-mix(in_srgb,var(--accent)_50%,var(--border))] text-[var(--accent)]"
+                                  : "border-[#7a5c2e] text-[#ffd28f]"
+                              }`}
+                              title={
+                                k.covered
+                                  ? `In ${[k.inResume && "resume", k.inCoverLetter && "cover letter"].filter(Boolean).join(" + ")}`
+                                  : "Not found in resume or cover letter"
+                              }
+                            >
+                              {k.covered ? "✓" : "✗"} {k.keyword}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {qaReport.findings.length > 0 ? (
-                    <div className="space-y-2">
-                      {qaReport.findings.map((f) => (
-                        <div
-                          key={f.id}
-                          className={`rounded-lg border px-3 py-2 text-sm ${severityClass(f.severity)}`}
-                        >
-                          <div className="mb-0.5 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide opacity-80">
-                            <span className="font-semibold">{f.severity}</span>
-                            <span>· {DOC_LABELS[f.document]}</span>
-                            <span>· {f.category}</span>
-                            <span>· {f.source}</span>
-                            {f.status === "repair_attempted" && (
-                              <span className="text-[var(--accent)]">· repair attempted</span>
+                    {qaReport.findings.length > 0 ? (
+                      <div className="space-y-2">
+                        {qaReport.findings.map((f) => (
+                          <div
+                            key={f.id}
+                            className={`rounded-lg border px-3 py-2 text-sm ${severityClass(f.severity)}`}
+                          >
+                            <div className="mb-0.5 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide opacity-80">
+                              <span className="font-semibold">{f.severity}</span>
+                              <span>· {DOC_LABELS[f.document]}</span>
+                              <span>· {f.category}</span>
+                              <span>· {f.source}</span>
+                              {f.status === "repair_attempted" && (
+                                <span className="text-[var(--accent)]">· repair attempted</span>
+                              )}
+                            </div>
+                            <p className="text-[var(--text)]">{f.detail}</p>
+                            {f.suggestion && (
+                              <p className="mt-1 text-xs text-[var(--muted)]">
+                                Suggestion: {f.suggestion}
+                              </p>
                             )}
                           </div>
-                          <p className="text-[var(--text)]">{f.detail}</p>
-                          {f.suggestion && (
-                            <p className="mt-1 text-xs text-[var(--muted)]">
-                              Suggestion: {f.suggestion}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[var(--muted)]">No issues found — all checks passed.</p>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-[var(--muted)]">No issues found — all checks passed.</p>
+                    )}
 
-                  {stats?.models && (
-                    <p className="mt-4 text-xs text-[var(--muted)]">
-                      Models — selection: {stats.models.selection} · drafting:{" "}
-                      {stats.models.drafting} · verification: {stats.models.verification}
-                      {typeof stats.durationMs === "number" &&
-                        ` · ${(stats.durationMs / 1000).toFixed(1)}s total`}
-                    </p>
-                  )}
-                </>
+                    {stats?.models && (
+                      <p className="mt-4 text-xs text-[var(--muted)]">
+                        Models — selection: {stats.models.selection} · drafting:{" "}
+                        {stats.models.drafting} · verification: {stats.models.verification}
+                        {typeof stats.durationMs === "number" &&
+                          ` · ${(stats.durationMs / 1000).toFixed(1)}s total`}
+                      </p>
+                    )}
+                  </>
+                )
               )}
             </div>
           ) : isMarkdownTab ? (

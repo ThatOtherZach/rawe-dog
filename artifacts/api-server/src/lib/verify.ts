@@ -43,6 +43,12 @@ export type QaReport = {
   repairedDocuments: DocKey[];
   counts: { major: number; minor: number; info: number };
   verifierRan: boolean;
+  /**
+   * True when verification was intentionally skipped (paste-sourced kit).
+   * The client should hide the QA panel content and show a "skipped" notice
+   * rather than displaying an empty findings list.
+   */
+  skipped?: boolean;
 };
 
 const HTML_TAG_RE = /<\/?[a-z][a-z0-9-]*(?:\s[^<>]*)?>/i;
