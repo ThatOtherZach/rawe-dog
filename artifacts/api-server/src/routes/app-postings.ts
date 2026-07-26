@@ -329,6 +329,59 @@ router.patch("/postings/:id/status", (req: Request, res: Response) => {
   res.json({ ok: true, ...statePayload(loadPostingsFile()) });
 });
 
+/** RFC 4180 CSV serialiser — minimal, no external dependency. */
+function toCsv(rows: string[][]): string {
+  function cell(v: string): string {
+    // Wrap in double-quotes when the value contains a comma, double-quote, or newline.
+    if (v.includes('"') || v.includes(',') || v.includes('\n') || v.includes('\r')) {
+      return '"' + v.replace(/"/g, '""') + '"';
+    }
+    return v;
+  }
+  return rows.map((r) => r.map(cell).join(",")).join("\r\n");
+}
+
+// NOTE: must be registered BEFORE /postings/:id so Express does not match
+// the literal segment "export.csv" as a posting ID.
+router.get("/postings/export.csv", (_req: Request, res: Response) => {
+  const file = loadPostingsFile();
+  const applied = file.postings.filter((sp) => (sp.status ?? "new") === "applied");
+
+  const headers = [
+    "Job Title",
+    "Company",
+    "Location",
+    "Job URL",
+    "Applied At",
+    "Fit Score",
+    "Kit Generated",
+    "Kit Generated At",
+    "Cross-Listing",
+    "Suspicious",
+  ];
+
+  const dataRows = applied.map((sp) => [
+    sp.posting.title ?? "",
+    sp.posting.company ?? "",
+    sp.posting.location ?? "",
+    sp.posting.url ?? "",
+    "", // appliedAt — not stored separately; column reserved for future tracking
+    sp.fit?.score != null ? String(sp.fit.score) : "",
+    sp.fit?.scoredAt ? "yes" : "no",
+    sp.fit?.scoredAt ?? "",
+    sp.crossListingOf ? "true" : "false",
+    sp.fit?.legitimacy === "suspicious" ? "true" : "false",
+  ]);
+
+  const csv = toCsv([headers, ...dataRows]);
+  // UTF-8 BOM for Excel compatibility
+  const bom = "\xEF\xBB\xBF";
+
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", 'attachment; filename="applied-jobs.csv"');
+  res.send(bom + csv);
+});
+
 router.get("/postings/:id", (req: Request, res: Response) => {
   const sp = getStoredPosting(String(req.params["id"] || ""));
   if (!sp) {

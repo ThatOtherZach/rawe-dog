@@ -1042,6 +1042,20 @@ export default function PostingsPage() {
               {scoredCount} scored · sorted by fit
             </span>
           )}
+          {counts && counts.appliedCount > 0 && (
+            <button
+              className="btn !px-2.5 !py-1 text-xs"
+              onClick={() => {
+                const a = document.createElement("a");
+                a.href = "/api/postings/export.csv";
+                a.download = "applied-jobs.csv";
+                a.click();
+              }}
+              title={`Download CSV of ${counts.appliedCount} applied posting${counts.appliedCount === 1 ? "" : "s"}`}
+            >
+              Export applied jobs
+            </button>
+          )}
           {counts && counts.dismissedCount > 0 && (
             <button
               className="btn !px-2.5 !py-1 text-xs"

@@ -1139,6 +1139,84 @@ export const useUpdatePostingFilters = <TError = ErrorType<ErrorResponse>,
       return useMutation(getUpdatePostingFiltersMutationOptions(options));
     }
 
+export const getExportAppliedJobsCsvUrl = () => {
+
+
+
+
+  return `/api/postings/export.csv`
+}
+
+/**
+ * Returns a UTF-8 CSV (with BOM for Excel compatibility) of every posting whose status is `applied`. One row per posting; no document content (cover letter, resume text, etc.) is included. Columns: job title, company, location, job URL, applied-at timestamp (reserved — not yet tracked), fit score, kit generated (yes/no), kit generated at, cross- listing flag (true/false), suspicious flag (true/false).
+ * @summary Export applied jobs as CSV
+ */
+export const exportAppliedJobsCsv = async ( options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportAppliedJobsCsvUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportAppliedJobsCsvQueryKey = () => {
+    return [
+    `/api/postings/export.csv`
+    ] as const;
+    }
+
+
+export const getExportAppliedJobsCsvQueryOptions = <TData = Awaited<ReturnType<typeof exportAppliedJobsCsv>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportAppliedJobsCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportAppliedJobsCsvQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAppliedJobsCsv>>> = ({ signal }) => exportAppliedJobsCsv({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportAppliedJobsCsv>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportAppliedJobsCsvQueryResult = NonNullable<Awaited<ReturnType<typeof exportAppliedJobsCsv>>>
+export type ExportAppliedJobsCsvQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Export applied jobs as CSV
+ */
+
+export function useExportAppliedJobsCsv<TData = Awaited<ReturnType<typeof exportAppliedJobsCsv>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportAppliedJobsCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportAppliedJobsCsvQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetPostingUrl = (id: string,) => {
 
 

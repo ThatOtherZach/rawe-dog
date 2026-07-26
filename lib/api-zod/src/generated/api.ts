@@ -497,6 +497,13 @@ export const UpdatePostingFiltersResponse = zod.object({
 
 
 /**
+ * Returns a UTF-8 CSV (with BOM for Excel compatibility) of every posting whose status is `applied`. One row per posting; no document content (cover letter, resume text, etc.) is included. Columns: job title, company, location, job URL, applied-at timestamp (reserved — not yet tracked), fit score, kit generated (yes/no), kit generated at, cross- listing flag (true/false), suspicious flag (true/false).
+ * @summary Export applied jobs as CSV
+ */
+export const ExportAppliedJobsCsvResponse = zod.unknown()
+
+
+/**
  * Returns the full stored posting including the canonical brief, fit result, and raw description. Use for the expanded row detail view.
  * @summary Get full posting detail
  */

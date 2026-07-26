@@ -49,6 +49,7 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 - Status is updated via `PATCH /api/postings/:id/status`. Generating a kit from a `postingId` automatically flips its status to `kit_generated`.
 - The list endpoint returns status counts (`newCount`, `kitGeneratedCount`, `appliedCount`, `dismissedCount`) for summary display.
 - Dismissed postings are hidden by default in the UI with a toggle to reveal them.
+- **CSV export**: `GET /api/postings/export.csv` returns all applied postings as a UTF-8 CSV (BOM included for Excel). Columns: title, company, location, URL, applied-at (reserved — not yet tracked), fit score, kit generated, kit generated at, cross-listing flag, suspicious flag. The "Export applied jobs" button appears on the Postings page only when at least one posting is applied.
 
 ### Pay-per-search credits (the toasteth pattern)
 - **Two lanes**: kit generation is **free** (no credit check on `/api/generate`); a $1 search credit is required to refresh postings via `/api/postings/refresh` (when `RAWEDOG_CREDITS_ENFORCED=true`). Paying gets you speed + targeting (pre-scored postings), not gated output quality.

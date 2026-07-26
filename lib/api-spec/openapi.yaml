@@ -507,6 +507,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /postings/export.csv:
+    get:
+      operationId: exportAppliedJobsCsv
+      tags: [postings]
+      summary: Export applied jobs as CSV
+      description: >
+        Returns a UTF-8 CSV (with BOM for Excel compatibility) of every posting
+        whose status is `applied`. One row per posting; no document content
+        (cover letter, resume text, etc.) is included. Columns: job title,
+        company, location, job URL, applied-at timestamp (reserved — not yet
+        tracked), fit score, kit generated (yes/no), kit generated at, cross-
+        listing flag (true/false), suspicious flag (true/false).
+      responses:
+        "200":
+          description: CSV file of applied postings (empty data rows when none exist)
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
   /postings/{id}:
     get:
       operationId: getPosting
