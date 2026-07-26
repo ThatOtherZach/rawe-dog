@@ -418,7 +418,7 @@ export default function SettingsPage() {
                 </div>
                 <span className="text-sm">{generatePdf ? "On" : "Off"}</span>
               </label>
-              <p className="mt-1 text-xs text-[var(--muted)]">Generates a PDF alongside the kit. Note that this will result in longer generation times.</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">turn on to generate PDFs files. Note that this will result in longer generation times.</p>
             </div>
           </div>
 
