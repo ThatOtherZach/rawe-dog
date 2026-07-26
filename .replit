@@ -29,3 +29,16 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.production]
+RAWEDOG_CRYPTO_NETWORK = "base"
+RAWEDOG_CRYPTO_CONFIRMATIONS = "5"
+RAWEDOG_SEARCH_CREDIT_PRICE_USD = "1"
+RAWEDOG_QUOTE_TTL_HOURS = "24"
+RAWEDOG_CRYPTO_RECEIVING_ADDRESS = "0x00000000000000000000000000000000"
+RAWEDOG_CREDITS_ENFORCED = "true"
+
+[userenv.development]
+RAWEDOG_CREDITS_ENFORCED = "flase"
