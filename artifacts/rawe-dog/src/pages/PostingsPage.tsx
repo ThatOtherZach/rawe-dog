@@ -347,9 +347,7 @@ function DigestStrip({
                 <button
                   className="btn btn-primary !px-2.5 !py-1 text-xs"
                   onClick={() => onViewClick(p.id)}
-                >
-                  View
-                </button>
+                >Apply</button>
               </div>
             </div>
           );
@@ -433,7 +431,15 @@ export default function PostingsPage() {
 
   const applyState = useCallback(
     (s: PostingsState) => {
-      setState(s);
+      // hasMasterProfile / hasExperienceCatalog are only returned by GET /api/postings.
+      // Other endpoints (refresh, filter-save, status-change, etc.) use statePayload()
+      // which omits them. Preserve whatever the full-load told us so the banner
+      // doesn't re-appear after a refresh or status change.
+      setState((prev) => ({
+        ...s,
+        hasMasterProfile: s.hasMasterProfile ?? prev?.hasMasterProfile,
+        hasExperienceCatalog: s.hasExperienceCatalog ?? prev?.hasExperienceCatalog,
+      }));
       if (s.filters) fillForm(s.filters);
     },
     [fillForm]
@@ -1130,7 +1136,6 @@ export default function PostingsPage() {
           </div>
         )}
       </section>
-
       {state && picks.length > 0 && (
         <DigestStrip
           picks={picks}
@@ -1140,7 +1145,6 @@ export default function PostingsPage() {
           onViewClick={handleViewClick}
         />
       )}
-
       <section className="panel p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h2 className="mr-auto text-lg font-semibold">
@@ -1315,7 +1319,6 @@ export default function PostingsPage() {
                       ))}
                     </p>
                   )}
-
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {p.url && (
                       <a
@@ -1375,7 +1378,6 @@ export default function PostingsPage() {
                       </Link>
                     )}
                   </div>
-
                   {expanded && (
                     <div className="mt-3 border-t border-[var(--border)] pt-3">
                       {!d ? (
