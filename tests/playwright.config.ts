@@ -11,6 +11,16 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],
+  webServer: {
+    command: "PORT=24020 BASE_PATH=/ pnpm --filter @workspace/rawe-dog run dev",
+    url: "http://localhost:24020",
+    reuseExistingServer: true,
+    timeout: 60_000,
+    env: {
+      PORT: "24020",
+      BASE_PATH: "/",
+    },
+  },
   use: {
     baseURL: "http://localhost:24020",
     trace: "on-first-retry",

@@ -250,15 +250,53 @@ const DAILY_BONUS_XP = 50;
 const FULL_LOOP_BONUS_XP = 75;
 
 // ---------------------------------------------------------------------------
-// Session state (in-memory, resets on page load)
+// Session state — persisted in sessionStorage so it survives within-tab
+// navigation (SPA route changes) but resets when the tab is closed.
 // ---------------------------------------------------------------------------
 
-const session = {
-  paidSearchRan: false,
-  kitGeneratedIds: new Map<string, number>(), // postingId -> timestamp
-  appliedIds: new Set<string>(),
-  dailyBonusAwardedDate: "", // "YYYY-MM-DD"
+const SS_SESSION_KEY = "rawedog_session";
+
+type SessionState = {
+  paidSearchRan: boolean;
+  /** postingId → Unix timestamp (ms) when kit was generated */
+  kitGeneratedIds: Record<string, number>;
+  appliedIds: string[];
+  dailyBonusAwardedDate: string; // "YYYY-MM-DD"
 };
+
+function emptySession(): SessionState {
+  return {
+    paidSearchRan: false,
+    kitGeneratedIds: {},
+    appliedIds: [],
+    dailyBonusAwardedDate: "",
+  };
+}
+
+function loadSession(): SessionState {
+  try {
+    const raw = sessionStorage.getItem(SS_SESSION_KEY);
+    if (!raw) return emptySession();
+    const parsed = JSON.parse(raw) as Partial<SessionState>;
+    const base = emptySession();
+    return {
+      paidSearchRan: parsed.paidSearchRan ?? base.paidSearchRan,
+      kitGeneratedIds: parsed.kitGeneratedIds ?? base.kitGeneratedIds,
+      appliedIds: parsed.appliedIds ?? base.appliedIds,
+      dailyBonusAwardedDate: parsed.dailyBonusAwardedDate ?? base.dailyBonusAwardedDate,
+    };
+  } catch {
+    return emptySession();
+  }
+}
+
+function saveSession(s: SessionState): void {
+  try {
+    sessionStorage.setItem(SS_SESSION_KEY, JSON.stringify(s));
+  } catch {
+    // no-op — storage may be unavailable (private mode, quota, etc.)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Profile helpers
@@ -480,6 +518,9 @@ export function awardXp(type: XpEventType, opts: AwardOpts = {}): void {
     let extraBonus = 0;
     let kitGeneratedAt: number | undefined;
 
+    // Load persisted session state (survives SPA navigation within the same tab)
+    const sess = loadSession();
+
     // Update stats
     const { stats } = p;
     stats.lastActivityAt = now;
@@ -489,9 +530,10 @@ export function awardXp(type: XpEventType, opts: AwardOpts = {}): void {
         stats.kitsGenerated += 1;
         // Mark first kit ever generated (shows the widget)
         localStorage.setItem(LS_KIT_EVER_KEY, "1");
-        // Session tracking
+        // Session tracking — persist so the kit survives navigation to another page
         if (opts.postingId) {
-          session.kitGeneratedIds.set(opts.postingId, Date.now());
+          sess.kitGeneratedIds[opts.postingId] = Date.now();
+          saveSession(sess);
         }
         break;
 
@@ -503,26 +545,30 @@ export function awardXp(type: XpEventType, opts: AwardOpts = {}): void {
         }
         // Daily first-apply bonus
         const todayStr = new Date().toISOString().slice(0, 10);
-        if (session.dailyBonusAwardedDate !== todayStr) {
-          session.dailyBonusAwardedDate = todayStr;
+        if (sess.dailyBonusAwardedDate !== todayStr) {
+          sess.dailyBonusAwardedDate = todayStr;
           extraBonus += DAILY_BONUS_XP;
           p.eventLog.push({ type: "applied", at: now }); // log daily bonus alongside
         }
         // Full-loop bonus: paid search ran this session + kit generated for this posting
         if (opts.postingId) {
-          const kitAt = session.kitGeneratedIds.get(opts.postingId);
-          if (session.paidSearchRan && kitAt !== undefined) {
+          const kitAt = sess.kitGeneratedIds[opts.postingId];
+          if (sess.paidSearchRan && kitAt !== undefined) {
             extraBonus += FULL_LOOP_BONUS_XP;
           }
-          kitGeneratedAt = session.kitGeneratedIds.get(opts.postingId);
-          session.appliedIds.add(opts.postingId);
+          kitGeneratedAt = sess.kitGeneratedIds[opts.postingId];
+          if (!sess.appliedIds.includes(opts.postingId)) {
+            sess.appliedIds.push(opts.postingId);
+          }
         }
+        saveSession(sess);
         break;
       }
 
       case "paid_search":
         stats.paidSearchesTotal += 1;
-        session.paidSearchRan = true;
+        sess.paidSearchRan = true;
+        saveSession(sess);
         break;
 
       case "compose_doc":
