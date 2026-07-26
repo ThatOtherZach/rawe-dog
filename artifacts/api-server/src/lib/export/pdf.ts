@@ -133,23 +133,41 @@ function drawRichText(doc: any, text: string, opts: {
   size: number;
   width: number;
   x?: number;
+  /** Explicit y for the first run. When omitted, doc.y is used. Pass this for
+   *  co-positioned elements (e.g. a bullet marker + its body text) to ensure
+   *  both start on the same baseline regardless of what the previous draw left
+   *  in doc.y. */
+  y?: number;
   align?: "left" | "right" | "center";
   lineGap?: number;
 }) {
   const runs = parseInline(text);
   const x = opts.x ?? MARGIN;
-  doc.x = x;
 
   for (let i = 0; i < runs.length; i++) {
     const run = runs[i];
     const isLast = i === runs.length - 1;
     doc.font(fontFor(run)).fontSize(opts.size);
-    doc.text(run.text, {
-      continued: !isLast,
-      width: opts.width,
-      align: opts.align || "left",
-      lineGap: opts.lineGap ?? 2,
-    });
+
+    if (i === 0) {
+      // Always use explicit x,y for the first run. This fully resets pdfkit's
+      // internal cursor so x-drift from previous blocks cannot accumulate, and
+      // lets callers pin the y for co-positioned draws (bullet marker + body).
+      const y = opts.y !== undefined ? opts.y : (doc.y as number);
+      doc.text(run.text, x, y, {
+        continued: !isLast,
+        width: opts.width,
+        align: opts.align ?? "left",
+        lineGap: opts.lineGap ?? 2,
+      });
+    } else {
+      doc.text(run.text, {
+        continued: !isLast,
+        width: opts.width,
+        align: opts.align ?? "left",
+        lineGap: opts.lineGap ?? 2,
+      });
+    }
   }
 }
 
@@ -235,11 +253,21 @@ export async function markdownToPdfBuffer(
       }
 
       if (block.type === "bullet") {
+        const INDENT = 12;
+        const bulletY = doc.y as number;
         doc.font("Helvetica").fontSize(9.5).fillColor("#333333");
-        const bx = MARGIN + 10;
-        doc.text("•", MARGIN, doc.y, { continued: true, width: 10 });
-        doc.x = bx;
-        drawRichText(doc, block.text, { size: 9.5, width: CONTENT_W - 10, x: bx });
+        // Draw the marker at bulletY WITHOUT continued:true so pdfkit does not
+        // lock subsequent draws into a 10-pt-wide continuation flow.
+        doc.text("•", MARGIN, bulletY, { width: INDENT, continued: false });
+        // Draw body at the same bulletY so marker and text share a baseline.
+        // drawRichText uses explicit x,y for its first run, so the y snap is
+        // guaranteed even though pdfkit advanced doc.y after the marker draw.
+        drawRichText(doc, block.text, {
+          size: 9.5,
+          width: CONTENT_W - INDENT,
+          x: MARGIN + INDENT,
+          y: bulletY,
+        });
         doc.moveDown(0.1);
         first = false;
         continue;

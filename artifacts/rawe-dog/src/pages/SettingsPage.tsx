@@ -314,7 +314,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label className="label">Custom API Endpoint (Base URL)</label>
+            <label className="label">Custom AI or LLM API Endpoint (Base URL)</label>
             <input
               className="input font-mono text-sm"
               type="text"
@@ -394,7 +394,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label className="label">Verification</label>
+            <label className="label">Document Verification</label>
             <label className="flex cursor-pointer items-center gap-3">
               <div className="relative">
                 <input
@@ -417,10 +417,7 @@ export default function SettingsPage() {
               </div>
               <span className="text-sm">{runVerification ? "On" : "Off"}</span>
             </label>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              When off, the QA verification pass is skipped for all kits — faster generation, no grounding report.
-              High-fit postings (score ≥ 70) skip verification automatically regardless of this setting.
-            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">Generates a QA verification report for grounding documents. Note that this will result in longer generation times. </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
