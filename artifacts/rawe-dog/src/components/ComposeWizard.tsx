@@ -111,13 +111,14 @@ function slugify(raw: string): string {
     .slice(0, 60);
 }
 
-type Phase = "questions" | "composing" | "review" | "saving" | "roleSaved";
+type Phase = "linkedin" | "questions" | "composing" | "review" | "saving" | "roleSaved";
 
 export function ComposeWizard({
   slot,
   slotTitle,
   hasExisting,
   hasApiKey,
+  linkedinImport = false,
   onClose,
   onSaved,
 }: {
@@ -125,11 +126,13 @@ export function ComposeWizard({
   slotTitle: string;
   hasExisting: boolean;
   hasApiKey: boolean;
+  linkedinImport?: boolean;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
   const questions = QUESTION_SETS[slot];
-  const [phase, setPhase] = useState<Phase>("questions");
+  const [phase, setPhase] = useState<Phase>(linkedinImport ? "linkedin" : "questions");
+  const [liFile, setLiFile] = useState<File | null>(null);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>(() => questions.map(() => ""));
   const [composed, setComposed] = useState<string | null>(null);
@@ -172,6 +175,29 @@ export function ComposeWizard({
       setError(err instanceof Error ? err.message : String(err));
       // Keep the previous draft if a regenerate failed; otherwise back to questions.
       setPhase(composed ? "review" : "questions");
+    }
+  }
+
+  async function importLinkedIn(file: File, tweakNote?: string) {
+    setPhase("composing");
+    setError(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      if (tweakNote && tweakNote.trim()) form.set("tweakNote", tweakNote.trim());
+      const res = await fetch("/api/library/import-linkedin", {
+        method: "POST",
+        body: form,
+      });
+      const json = (await res.json()) as { markdown?: string; error?: string };
+      if (!res.ok) throw new Error(json.error || "Import failed");
+      setComposed(json.markdown || "");
+      setTweak("");
+      setPhase("review");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      // Keep the previous draft if a regenerate failed; otherwise back to the picker.
+      setPhase(composed ? "review" : "linkedin");
     }
   }
 
@@ -236,7 +262,7 @@ export function ComposeWizard({
       >
         <div className="mb-3 flex items-center gap-2">
           <h3 className="mr-auto font-semibold">
-            Compose: {slotTitle}
+            {linkedinImport ? "Import LinkedIn PDF" : `Compose: ${slotTitle}`}
             {slot === "experience" && savedCount > 0 && (
               <span className="ml-2 text-xs font-normal text-[var(--muted)]">
                 {savedCount} role{savedCount > 1 ? "s" : ""} saved
@@ -272,6 +298,39 @@ export function ComposeWizard({
               Add your key in Settings
             </Link>{" "}
             first, then come back.
+          </div>
+        ) : phase === "linkedin" ? (
+          <div data-testid="linkedin-import-step">
+            <p className="mb-2 text-sm">
+              Export your own profile from LinkedIn, then upload the PDF here.
+              Your model turns it into a Master Profile draft you can edit
+              before anything is saved.
+            </p>
+            <ol className="mb-4 list-decimal space-y-1 pl-5 text-sm text-[var(--muted)]">
+              <li>On LinkedIn, open your own profile page</li>
+              <li>
+                Click <span className="text-[var(--text)]">Resources</span> (or{" "}
+                <span className="text-[var(--text)]">More</span>) →{" "}
+                <span className="text-[var(--text)]">Save to PDF</span>
+              </li>
+              <li>Upload the downloaded PDF below</li>
+            </ol>
+            <label className="btn btn-primary cursor-pointer">
+              Choose LinkedIn PDF
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,application/pdf"
+                data-testid="linkedin-file-input"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  setLiFile(file);
+                  void importLinkedIn(file);
+                }}
+              />
+            </label>
           </div>
         ) : phase === "questions" && q ? (
           <div>
@@ -394,10 +453,10 @@ export function ComposeWizard({
               </button>
               <button
                 className="btn"
-                onClick={() => setPhase("questions")}
+                onClick={() => setPhase(linkedinImport ? "linkedin" : "questions")}
                 data-testid="compose-edit-answers"
               >
-                Back to questions
+                {linkedinImport ? "Pick a different PDF" : "Back to questions"}
               </button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -410,7 +469,11 @@ export function ComposeWizard({
               />
               <button
                 className="btn"
-                onClick={() => void compose(tweak)}
+                onClick={() =>
+                  linkedinImport && liFile
+                    ? void importLinkedIn(liFile, tweak)
+                    : void compose(tweak)
+                }
                 data-testid="compose-regenerate"
               >
                 Regenerate

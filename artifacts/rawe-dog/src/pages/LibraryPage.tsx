@@ -88,6 +88,7 @@ export default function LibraryPage() {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [composeSlot, setComposeSlot] = useState<SlotInfo | null>(null);
+  const [composeMode, setComposeMode] = useState<"quiz" | "linkedin">("quiz");
 
   const refresh = useCallback(async () => {
     const [libRes, settingsRes] = await Promise.all([
@@ -363,10 +364,25 @@ export default function LibraryPage() {
                   <button
                     className={files.length === 0 ? "btn btn-primary" : "btn"}
                     data-testid={`compose-open-${slot.slot}`}
-                    onClick={() => setComposeSlot(slot)}
+                    onClick={() => {
+                      setComposeMode("quiz");
+                      setComposeSlot(slot);
+                    }}
                   >
                     Create
                   </button>
+                  {slot.slot === "master-profile" && (
+                    <button
+                      className="btn"
+                      data-testid="linkedin-import-open"
+                      onClick={() => {
+                        setComposeMode("linkedin");
+                        setComposeSlot(slot);
+                      }}
+                    >
+                      Import LinkedIn
+                    </button>
+                  )}
                   <a
                     className="btn"
                     href={starter.starterHref}
@@ -451,6 +467,7 @@ export default function LibraryPage() {
           slotTitle={composeSlot.label}
           hasExisting={(data?.files[composeSlot.slot] || []).length > 0}
           hasApiKey={hasApiKey}
+          linkedinImport={composeMode === "linkedin"}
           onClose={() => setComposeSlot(null)}
           onSaved={async () => {
             await refresh();

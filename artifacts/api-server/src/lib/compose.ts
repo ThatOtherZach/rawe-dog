@@ -36,7 +36,10 @@ export type ComposeRequest = {
 const MAX_ANSWERS = 30;
 const MAX_QUESTION_CHARS = 300;
 const MAX_ANSWER_CHARS = 2000;
-const MAX_TWEAK_CHARS = 1000;
+export const MAX_TWEAK_CHARS = 1000;
+
+/** Cap on extracted LinkedIn PDF text fed to the model (~15k tokens). */
+export const MAX_LINKEDIN_TEXT_CHARS = 60_000;
 
 /** Validate + normalize a compose request body. Throws with a user-facing message. */
 export function parseComposeRequest(body: unknown): ComposeRequest {
@@ -236,23 +239,38 @@ const SLOT_EXTRA_RULES: Record<ComposeSlot, string> = {
     '- First line must be "# <Job Title> — <Company>".',
 };
 
+/** Shared system-prompt frame for all compose-style drafting calls. */
+function composeSystem(
+  intro: string,
+  sourceNoun: string,
+  omitRule: string,
+  slotRules: string
+): string {
+  return [
+    intro,
+    "",
+    "Hard rules:",
+    `- Use ONLY facts stated in the ${sourceNoun}. Never invent details, numbers, dates, links, or employers.`,
+    omitRule,
+    "- Follow the skeleton's heading structure. Replace placeholders with real content; drop the instructional blockquotes and every \"REPLACE:\" marker.",
+    "- Write in the first person, plain language, no buzzwords.",
+    slotRules,
+    "",
+    "Return JSON matching the schema: { markdown } — the complete document, nothing else.",
+  ].join("\n");
+}
+
 export function buildComposeMessages(req: ComposeRequest): {
   system: string;
   user: string;
 } {
   const docName = SLOT_DOC_NAME[req.slot];
-  const system = [
+  const system = composeSystem(
     `You turn a short structured interview into a finished "${docName}" markdown file for a job-application tool.`,
-    "",
-    "Hard rules:",
-    "- Use ONLY facts stated in the interview answers. Never invent details, numbers, dates, links, or employers.",
-    "- If an answer is blank, \"none\", or \"skip\", OMIT that section entirely — do not fabricate content for it.",
-    "- Follow the skeleton's heading structure. Replace placeholders with real content; drop the instructional blockquotes and every \"REPLACE:\" marker.",
-    "- Write in the first person, plain language, no buzzwords.",
-    SLOT_EXTRA_RULES[req.slot],
-    "",
-    "Return JSON matching the schema: { markdown } — the complete document, nothing else.",
-  ].join("\n");
+    "interview answers",
+    '- If an answer is blank, "none", or "skip", OMIT that section entirely — do not fabricate content for it.',
+    SLOT_EXTRA_RULES[req.slot]
+  );
 
   const transcript = req.answers
     .map((a, i) => `Q${i + 1}: ${a.question}\nA${i + 1}: ${a.answer || "(skipped)"}`)
@@ -271,6 +289,37 @@ export function buildComposeMessages(req: ComposeRequest): {
   ];
   if (req.tweakNote) {
     parts.push("", `REVISION REQUEST (apply to the previous draft's approach): ${req.tweakNote}`);
+  }
+  return { system, user: parts.join("\n") };
+}
+
+/**
+ * LinkedIn PDF import: raw extracted profile text -> Master Profile markdown.
+ * Same frame, skeleton, and schema as quiz-compose — only the source differs.
+ */
+export function buildLinkedInImportMessages(
+  linkedinText: string,
+  tweakNote?: string
+): { system: string; user: string } {
+  const system = composeSystem(
+    'You turn the raw text of a person\'s self-exported LinkedIn profile PDF into a finished "Master Profile" markdown file for a job-application tool.',
+    "LinkedIn text",
+    "- If the LinkedIn text has nothing for a section, OMIT that section entirely — do not fabricate content for it.",
+    SLOT_EXTRA_RULES["master-profile"]
+  );
+  const parts = [
+    "SKELETON (target structure):",
+    "```markdown",
+    STARTER_SKELETONS["master-profile"].trim(),
+    "```",
+    "",
+    "LINKEDIN PROFILE TEXT:",
+    "```",
+    linkedinText.slice(0, MAX_LINKEDIN_TEXT_CHARS),
+    "```",
+  ];
+  if (tweakNote) {
+    parts.push("", `REVISION REQUEST (apply to the previous draft's approach): ${tweakNote}`);
   }
   return { system, user: parts.join("\n") };
 }

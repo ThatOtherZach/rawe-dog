@@ -78,6 +78,7 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 | `GET` | `/api/postings/export.csv` | Download applied postings as CSV (UTF-8 BOM, Excel-safe) |
 | `GET` | `/api/library` | List library files |
 | `POST` | `/api/library/compose` | Quiz-compose a knowledge doc from interview answers (returns a markdown draft; saving is a separate explicit upload) |
+| `POST` | `/api/library/import-linkedin` | Draft a Master Profile from a user-exported LinkedIn PDF (raw extracted text → LLM with the same compose skeleton; no parsing; returns markdown only, saving is a separate upload) |
 | `GET/POST/DELETE` | `/api/settings` | Read/update/clear settings (xAI key, TheirStack key, models) |
 | `GET` | `/api/credits/status` | Gate state + price + token balance (`X-Credit-Token` optional) |
 | `POST` | `/api/credits/quote` | Quote a unique exact amount (`{asset: "eth"\|"usdc"}`) |

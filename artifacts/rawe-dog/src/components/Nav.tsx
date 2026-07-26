@@ -17,9 +17,7 @@ export function Nav() {
         </div>
         <div>
           <div className="text-sm font-semibold tracking-wide">RAWE-DOG</div>
-          <div className="text-xs text-[var(--muted)]">
-            Job paste → tailored application kit
-          </div>
+          <div className="text-xs text-[var(--muted)]">Resume And Work Experience - Document Output Generator</div>
         </div>
       </div>
       <nav className="flex items-center gap-1">

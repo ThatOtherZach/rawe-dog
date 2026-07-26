@@ -13,14 +13,40 @@ import {
 import {
   parseComposeRequest,
   buildComposeMessages,
+  buildLinkedInImportMessages,
   KNOWLEDGE_COMPOSE_SCHEMA,
   COMPOSE_SCHEMA_NAME,
+  MAX_TWEAK_CHARS,
 } from "../lib/compose.js";
+import { extractPdfText } from "../lib/pdf-text.js";
 import { chatStructured } from "../lib/xai.js";
 import { loadSettings } from "../lib/settings.js";
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // LinkedIn exports are well under 15 MB
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_UPLOAD_BYTES },
+});
+
+/** Multer throws LIMIT_FILE_SIZE outside route handlers — map it to a clear 400. */
+function multerErrorHandler(
+  err: unknown,
+  _req: Request,
+  res: Response,
+  next: (e?: unknown) => void
+) {
+  if (err instanceof multer.MulterError) {
+    res.status(400).json({
+      error:
+        err.code === "LIMIT_FILE_SIZE"
+          ? "File is too large (max 15 MB)."
+          : `Upload failed: ${err.message}`,
+    });
+    return;
+  }
+  next(err);
+}
 
 /**
  * Compose a knowledge doc from guided-interview answers.
@@ -64,6 +90,75 @@ router.post("/library/compose", async (req: Request, res: Response) => {
     res.status(502).json({ error: message });
   }
 });
+
+/**
+ * LinkedIn PDF import: extract the raw text and draft a Master Profile.
+ * Same BYOM/no-credit rules as compose; returns markdown only, saves nothing.
+ */
+router.post(
+  "/library/import-linkedin",
+  upload.single("file"),
+  async (req: Request, res: Response) => {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: "file is required" });
+      return;
+    }
+    const isPdf =
+      file.mimetype === "application/pdf" ||
+      (file.originalname || "").toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      res.status(400).json({ error: "Upload the PDF exported from LinkedIn (Save to PDF)." });
+      return;
+    }
+    if (!loadSettings().apiKey) {
+      res.status(400).json({
+        error: "No xAI API key configured. Add one on the Settings page first.",
+      });
+      return;
+    }
+    let tweakNote: string | undefined;
+    if (req.body?.tweakNote != null && String(req.body.tweakNote).trim()) {
+      tweakNote = String(req.body.tweakNote).trim().slice(0, MAX_TWEAK_CHARS);
+    }
+    let text = "";
+    try {
+      text = await extractPdfText(file.buffer);
+    } catch {
+      res.status(400).json({
+        error: "Couldn't read that PDF. Re-export it from LinkedIn and try again.",
+      });
+      return;
+    }
+    if (!text) {
+      res.status(400).json({
+        error:
+          "No text could be extracted from that PDF — it may be a scan or image. Use LinkedIn's own \"Save to PDF\" export.",
+      });
+      return;
+    }
+    try {
+      const { system, user } = buildLinkedInImportMessages(text, tweakNote);
+      const { data, meta } = await chatStructured<{ markdown: string }>({
+        stage: "drafting",
+        system,
+        user,
+        schemaName: COMPOSE_SCHEMA_NAME,
+        schema: KNOWLEDGE_COMPOSE_SCHEMA,
+        maxTokens: 4096,
+        temperature: 0.4,
+      });
+      const markdown = (data.markdown || "").trim();
+      if (!markdown) {
+        res.status(502).json({ error: "Model returned an empty document. Try again." });
+        return;
+      }
+      res.json({ ok: true, markdown, model: meta.model });
+    } catch (err) {
+      res.status(502).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+);
 
 router.get("/library", (_req: Request, res: Response) => {
   const library = listLibrary();
@@ -178,5 +273,7 @@ function getContentType(kind: string, name: string): string {
   }
   return "application/octet-stream";
 }
+
+router.use(multerErrorHandler);
 
 export default router;
