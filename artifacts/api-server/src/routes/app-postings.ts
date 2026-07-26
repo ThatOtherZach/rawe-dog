@@ -367,8 +367,8 @@ router.get("/postings/export.csv", (_req: Request, res: Response) => {
     sp.posting.url ?? "",
     sp.appliedAt ?? "",
     sp.fit?.score != null ? String(sp.fit.score) : "",
-    sp.fit?.scoredAt ? "yes" : "no",
-    sp.fit?.scoredAt ?? "",
+    sp.kitGeneratedAt ? "yes" : "no",
+    sp.kitGeneratedAt ?? "",
     sp.crossListingOf ? "true" : "false",
     sp.fit?.legitimacy === "suspicious" ? "true" : "false",
   ]);

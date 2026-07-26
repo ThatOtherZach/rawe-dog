@@ -58,6 +58,13 @@ export type StoredPosting = {
    */
   appliedAt?: string;
   /**
+   * ISO timestamp of when the kit was first generated for this posting
+   * (i.e. when the status first transitioned to "kit_generated").
+   * Absent on pre-existing records — kept blank in the CSV for backwards
+   * compatibility.  Not cleared if the status advances to "applied".
+   */
+  kitGeneratedAt?: string;
+  /**
    * SimHash fingerprint of the normalized description (16 hex chars).
    * Empty string when the body is too short to fingerprint reliably.
    * Absent on pre-existing records — treated as no fingerprint.
@@ -289,6 +296,13 @@ export function setPostingStatus(id: string, status: PostingStatus): boolean {
     }
   } else {
     delete sp.appliedAt;
+  }
+  if (status === "kit_generated") {
+    // Only stamp the time on the first kit generation.
+    // The timestamp persists even when the status later advances to "applied".
+    if (!sp.kitGeneratedAt) {
+      sp.kitGeneratedAt = new Date().toISOString();
+    }
   }
   savePostingsFile(file);
   return true;
