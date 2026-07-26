@@ -17,7 +17,19 @@ import {
 const DEFAULT_BASE_URL = "https://api.theirstack.com";
 
 function baseUrl(): string {
-  return process.env["THEIRSTACK_BASE_URL"]?.trim() || DEFAULT_BASE_URL;
+  const override = process.env["THEIRSTACK_BASE_URL"]?.trim() || "";
+  if (override) {
+    try {
+      new URL(override); // throws if not a valid URL
+      return override;
+    } catch {
+      console.warn(
+        "[theirstack] THEIRSTACK_BASE_URL is set but is not a valid URL — ignoring it and using the default. " +
+        "This env var is a dev/test hook for pointing at a local mock server; it is NOT the API key field."
+      );
+    }
+  }
+  return DEFAULT_BASE_URL;
 }
 
 function escapeRegex(literal: string): string {
