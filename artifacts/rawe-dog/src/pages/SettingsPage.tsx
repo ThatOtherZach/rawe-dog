@@ -203,39 +203,45 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <section className="panel p-5">
-        <h2 className="mb-2 text-base font-semibold">About</h2>
-        <p className="text-sm text-[var(--muted)]">RAWE-DOG generates tailored application kits (resume, cover letter, alignment notes, STAR prep) from a job posting and your personal knowledge library, grounded entirely in your own experience files. Every run drafts documents in parallel, then verifies grounding and consistency before delivery. No fabrication and uses guardrails to ensure accuracy.</p>
-        <hr className="my-4 border-[var(--border)]" />
-        <h3 className="mb-2 text-sm font-semibold">Support RAWE Dog</h3>
-        <div className="flex flex-wrap items-center gap-4">
-          <img
-            src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&bgcolor=0c0e13&color=ffffff&data=0xC300A97f4ce2f9D4B02106045374c4C5eDb349af"
-            alt="QR code for Ethereum address"
-            width={120}
-            height={120}
-            className="shrink-0 rounded-lg border border-[var(--border)]"
-          />
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="text-sm text-[var(--muted)]">
-              If this framework actually helps you land interviews or makes your job search less
-              soul-crushing, and you feel like throwing some crypto my way, here's an Ethereum address:
-            </p>
-            <div className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[#0c0e13] px-4 py-3">
-              <code className="flex-1 break-all font-mono text-sm text-[var(--accent)]">
-                0xC300A97f4ce2f9D4B02106045374c4C5eDb349af
-              </code>
-              <button
-                className="btn shrink-0"
-                onClick={() =>
-                  void navigator.clipboard.writeText("0xC300A97f4ce2f9D4B02106045374c4C5eDb349af")
-                }
-              >
-                Copy
-              </button>
+        <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
+          {/* Left — About */}
+          <div>
+            <h2 className="mb-2 text-base font-semibold">About</h2>
+            <p className="text-sm text-[var(--muted)]">RAWE-DOG generates tailored application kits (resume, cover letter, alignment notes, STAR prep) from a job posting and your personal knowledge library, grounded entirely in your own experience files. Every run drafts documents in parallel, then verifies grounding and consistency before delivery. No fabrication and uses guardrails to ensure accuracy.</p>
+          </div>
+          {/* Right — Support */}
+          <div>
+            <h3 className="mb-3 text-sm font-semibold">Support RAWE Dog</h3>
+            <div className="flex items-start gap-3">
+              <img
+                src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&bgcolor=0c0e13&color=ffffff&data=0xC300A97f4ce2f9D4B02106045374c4C5eDb349af"
+                alt="QR code for Ethereum address"
+                width={96}
+                height={96}
+                className="shrink-0 rounded-lg border border-[var(--border)]"
+              />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <p className="text-xs text-[var(--muted)]">
+                  If this actually helps your job search, feel free to throw some crypto my way:
+                </p>
+                <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[#0c0e13] px-3 py-2">
+                  <code className="flex-1 break-all font-mono text-xs text-[var(--accent)]">
+                    0xC300A97f4ce2f9D4B02106045374c4C5eDb349af
+                  </code>
+                  <button
+                    className="btn shrink-0 text-xs"
+                    onClick={() =>
+                      void navigator.clipboard.writeText("0xC300A97f4ce2f9D4B02106045374c4C5eDb349af")
+                    }
+                  >
+                    Copy
+                  </button>
+                </div>
+                <p className="text-xs text-[var(--muted)]">
+                  No pressure — free and open source.
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-[var(--muted)]">
-              No pressure. This is free and open source. Use it, improve it, share it.
-            </p>
           </div>
         </div>
       </section>
