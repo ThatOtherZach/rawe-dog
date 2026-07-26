@@ -191,7 +191,7 @@ function ProfilePanel({ profile, onClose }: { profile: Profile; onClose: () => v
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
           <div>
             <h2 className="text-base font-semibold">RAWE-DOG XP</h2>
-            <p className="text-xs text-[var(--muted)]">Office Space edition</p>
+            <p className="text-xs text-[var(--muted)]">Generate kits to earn XP!</p>
           </div>
           <button
             className="text-[var(--muted)] hover:text-[var(--text)]"
