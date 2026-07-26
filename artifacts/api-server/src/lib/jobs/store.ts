@@ -52,6 +52,12 @@ export type StoredPosting = {
   addedAt: string;
   status: PostingStatus;
   /**
+   * ISO timestamp of when the posting's status was changed to "applied".
+   * Absent on pre-existing records — kept blank in the CSV for backwards
+   * compatibility.  Cleared when the status is reverted from "applied".
+   */
+  appliedAt?: string;
+  /**
    * SimHash fingerprint of the normalized description (16 hex chars).
    * Empty string when the body is too short to fingerprint reliably.
    * Absent on pre-existing records — treated as no fingerprint.
@@ -274,6 +280,16 @@ export function setPostingStatus(id: string, status: PostingStatus): boolean {
   const sp = file.postings.find((p) => p.posting.id === id);
   if (!sp) return false;
   sp.status = status;
+  if (status === "applied") {
+    // Only stamp the time on the first transition into "applied".
+    // If the status is already "applied" and a timestamp exists, preserve it
+    // so that repeated or duplicate PATCH calls don't overwrite the original.
+    if (!sp.appliedAt) {
+      sp.appliedAt = new Date().toISOString();
+    }
+  } else {
+    delete sp.appliedAt;
+  }
   savePostingsFile(file);
   return true;
 }

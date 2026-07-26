@@ -365,7 +365,7 @@ router.get("/postings/export.csv", (_req: Request, res: Response) => {
     sp.posting.company ?? "",
     sp.posting.location ?? "",
     sp.posting.url ?? "",
-    "", // appliedAt — not stored separately; column reserved for future tracking
+    sp.appliedAt ?? "",
     sp.fit?.score != null ? String(sp.fit.score) : "",
     sp.fit?.scoredAt ? "yes" : "no",
     sp.fit?.scoredAt ?? "",

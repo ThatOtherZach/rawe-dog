@@ -32,6 +32,7 @@ interface PostingSummary {
   datePosted: string;
   addedAt: string;
   status: PostingStatus;
+  appliedAt?: string;
   score: number | null;
   rationale: string;
   matchedExperienceIds: string[];
@@ -144,7 +145,7 @@ function buildCsvResponse(postings: PostingSummary[]): string {
           p.company,
           p.location,
           p.url,
-          "", // appliedAt — not stored
+          p.appliedAt ?? "",
           p.score != null ? String(p.score) : "",
           p.hasBrief ? "yes" : "no",
           p.scoredAt ?? "",
@@ -292,6 +293,55 @@ test.describe("Export applied jobs as CSV", () => {
     expect(row2[9]).toBe("true");  // suspicious
   });
 
+  test("Applied At column contains the appliedAt timestamp when set", async ({
+    page,
+  }) => {
+    const appliedAt = "2026-07-25T14:30:00.000Z";
+    const posting = makePosting(1, "applied", { appliedAt });
+    await setupMocks(page, [posting]);
+    await page.goto("/postings");
+
+    const result = await page.evaluate(async () => {
+      const res = await fetch("/api/postings/export.csv");
+      return { status: res.status, body: await res.text() };
+    });
+
+    expect(result.status).toBe(200);
+    const text = result.body.startsWith("\uFEFF")
+      ? result.body.slice(1)
+      : result.body;
+    const lines = text.split("\r\n").filter(Boolean);
+    // Header + 1 data row
+    expect(lines.length).toBe(2);
+    const cols = lines[1].split(",");
+    // Column index 4 is "Applied At"
+    expect(cols[4]).toBe(appliedAt);
+  });
+
+  test("Applied At column is blank for applied postings without appliedAt (backwards-compatible)", async ({
+    page,
+  }) => {
+    // Simulate a pre-existing record that has no appliedAt field
+    const posting = makePosting(1, "applied");
+    delete posting.appliedAt;
+    await setupMocks(page, [posting]);
+    await page.goto("/postings");
+
+    const result = await page.evaluate(async () => {
+      const res = await fetch("/api/postings/export.csv");
+      return { status: res.status, body: await res.text() };
+    });
+
+    expect(result.status).toBe(200);
+    const text = result.body.startsWith("\uFEFF")
+      ? result.body.slice(1)
+      : result.body;
+    const lines = text.split("\r\n").filter(Boolean);
+    expect(lines.length).toBe(2);
+    const cols = lines[1].split(",");
+    expect(cols[4]).toBe("");
+  });
+
   test("CSV with no applied postings returns only the header row", async ({
     page,
   }) => {
@@ -317,6 +367,42 @@ test.describe("Export applied jobs as CSV", () => {
     expect(lines[0]).toContain("Job Title");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Minimal RFC-4180 CSV cell parser (handles quoted fields with escaped quotes).
+// ---------------------------------------------------------------------------
+
+function parseCsvRow(line: string): string[] {
+  const cells: string[] = [];
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] === '"') {
+      // Quoted field: read until closing unescaped quote.
+      let val = "";
+      i++; // skip opening quote
+      while (i < line.length) {
+        if (line[i] === '"' && line[i + 1] === '"') {
+          val += '"';
+          i += 2;
+        } else if (line[i] === '"') {
+          i++; // skip closing quote
+          break;
+        } else {
+          val += line[i++];
+        }
+      }
+      cells.push(val);
+      if (line[i] === ",") i++; // skip separator
+    } else {
+      // Unquoted field: read until comma or end.
+      const start = i;
+      while (i < line.length && line[i] !== ",") i++;
+      cells.push(line.slice(start, i));
+      if (line[i] === ",") i++;
+    }
+  }
+  return cells;
+}
 
 // ---------------------------------------------------------------------------
 // Real server smoke test — no mocks, hits the actual API server
@@ -365,5 +451,71 @@ test.describe("Export CSV — real server", () => {
     expect(headerLine).toContain("Kit Generated At");
     expect(headerLine).toContain("Cross-Listing");
     expect(headerLine).toContain("Suspicious");
+  });
+
+  test("appliedAt is set on first apply and not overwritten by a duplicate apply", async ({
+    request,
+  }) => {
+    // Fetch existing postings — skip gracefully if none are present.
+    const listRes = await request.get(`${API_BASE}/api/postings`);
+    expect(listRes.status()).toBe(200);
+    const listBody = await listRes.json() as {
+      postings: Array<{ id: string; url: string; status: string }>;
+    };
+    const postings = listBody.postings ?? [];
+    if (postings.length === 0) {
+      // No postings stored — nothing to apply, idempotency trivially holds.
+      return;
+    }
+
+    // Pick first posting; remember its original status so we can clean up.
+    const target = postings[0];
+    const originalStatus = target.status;
+
+    // Ensure a clean slate: clear any existing appliedAt by moving to "new".
+    const clearRes = await request.patch(
+      `${API_BASE}/api/postings/${target.id}/status`,
+      { data: { status: "new" } }
+    );
+    expect(clearRes.status()).toBe(200);
+
+    // ---------- First apply ----------
+    const apply1Res = await request.patch(
+      `${API_BASE}/api/postings/${target.id}/status`,
+      { data: { status: "applied" } }
+    );
+    expect(apply1Res.status()).toBe(200);
+
+    // Read the CSV and find the Applied At value for our posting by URL.
+    const csv1 = await (await request.get(`${API_BASE}/api/postings/export.csv`)).text();
+    const lines1 = csv1.replace(/^\uFEFF/, "").split("\r\n").filter(Boolean);
+    // Skip header row; find the row whose URL column (index 3) matches.
+    const row1 = lines1.slice(1).map(parseCsvRow).find((cols) => cols[3] === target.url);
+    expect(row1).toBeDefined();
+    const appliedAt1 = row1![4];
+    expect(appliedAt1).toMatch(/^\d{4}-\d{2}-\d{2}T/); // valid ISO timestamp
+
+    // ---------- Small delay then duplicate apply ----------
+    await new Promise((r) => setTimeout(r, 50));
+    const apply2Res = await request.patch(
+      `${API_BASE}/api/postings/${target.id}/status`,
+      { data: { status: "applied" } }
+    );
+    expect(apply2Res.status()).toBe(200);
+
+    const csv2 = await (await request.get(`${API_BASE}/api/postings/export.csv`)).text();
+    const lines2 = csv2.replace(/^\uFEFF/, "").split("\r\n").filter(Boolean);
+    const row2 = lines2.slice(1).map(parseCsvRow).find((cols) => cols[3] === target.url);
+    expect(row2).toBeDefined();
+    const appliedAt2 = row2![4];
+
+    // Timestamp must be identical — duplicate apply must not advance the clock.
+    expect(appliedAt2).toBe(appliedAt1);
+
+    // ---------- Cleanup: restore original status ----------
+    await request.patch(
+      `${API_BASE}/api/postings/${target.id}/status`,
+      { data: { status: originalStatus } }
+    );
   });
 });
