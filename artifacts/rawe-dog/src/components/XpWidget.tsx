@@ -196,7 +196,7 @@ function ProfilePanel({ profile, onClose }: { profile: Profile; onClose: () => v
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold">RAWE-DOG XP</h2>
+            <h2 className="text-base font-semibold">Your RAWE-DOG Experience</h2>
             <p className="text-xs text-[var(--muted)]">Generate kits to earn XP!</p>
           </div>
           <button
