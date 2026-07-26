@@ -17,6 +17,8 @@ import {
   getNetworkConfig,
   getReceivingAddress,
   getSearchCreditPriceCents,
+  getSearchPricingMode,
+  computeSearchPriceCents,
   getQuoteTtlMs,
   readEthUsd,
   usdcAtomicAmount,
@@ -39,6 +41,7 @@ import { encodeToken, checkToken, creditsEnforced } from "../lib/credits/tokens.
 import { cadBreakdownForUsdCents } from "../lib/credits/fxtax.js";
 import { logger } from "../lib/logger.js";
 import { loadSettings } from "../lib/settings.js";
+import { loadPostingsFile } from "../lib/jobs/store.js";
 
 const router = Router();
 const log = logger.child({ route: "credits" });
@@ -68,6 +71,7 @@ router.get("/credits/status", async (req: Request, res: Response) => {
       enforced,
       providerConfigured,
       priceUsdCents: getSearchCreditPriceCents(),
+      pricingMode: getSearchPricingMode(),
       crypto: address
         ? { available: true, network: cfg.network, receivingAddress: address }
         : { available: false },
@@ -92,7 +96,23 @@ router.post("/credits/quote", async (req: Request, res: Response) => {
       return;
     }
     const cfg = getNetworkConfig();
-    const priceCents = getSearchCreditPriceCents();
+    const pricingMode = getSearchPricingMode();
+
+    // In per-result mode, read the limit from the server-side saved filters so
+    // the client cannot manipulate the price by sending a different limit.
+    let creditUnits = 1;
+    if (pricingMode === "per-result") {
+      try {
+        const postingsFile = loadPostingsFile();
+        const savedLimit = postingsFile.filters?.limit;
+        creditUnits = savedLimit && savedLimit > 0 ? Math.floor(savedLimit) : 1;
+      } catch {
+        // loadPostingsFile throws if no file exists yet; fall back to 1 unit
+        creditUnits = 1;
+      }
+    }
+
+    const priceCents = computeSearchPriceCents(creditUnits);
     const base =
       asset === "usdc"
         ? usdcAtomicAmount(priceCents, cfg.usdcDecimals)
@@ -104,6 +124,7 @@ router.post("/credits/quote", async (req: Request, res: Response) => {
       asset,
       baseAmount: base,
       priceCents,
+      creditUnits,
       network: cfg.network,
       receivingAddress: address,
       ttlMs: getQuoteTtlMs(),
@@ -112,7 +133,7 @@ router.post("/credits/quote", async (req: Request, res: Response) => {
       res.status(503).json({ ok: false, error: "Could not allocate a unique payment amount — try again." });
       return;
     }
-    log.info({ evt: "quote", asset, quoteId: quote.id }, "credit quote issued");
+    log.info({ evt: "quote", asset, quoteId: quote.id, creditUnits }, "credit quote issued");
     res.json({
       ok: true,
       quoteId: quote.id,
@@ -122,6 +143,7 @@ router.post("/credits/quote", async (req: Request, res: Response) => {
       amountAtomic: quote.amountAtomic,
       amountDisplay: formatAtomic(BigInt(quote.amountAtomic), asset),
       priceUsdCents: priceCents,
+      creditUnits,
       expiresAt: quote.expiresAt,
     });
   } catch (err) {
@@ -202,7 +224,7 @@ router.post("/credits/verify", async (req: Request, res: Response) => {
       asset: quote.asset,
       txHash,
       payer: outcome.payer,
-      credits: 1,
+      credits: quote.creditUnits ?? 1,
       priceUsdCents: quote.priceCents,
       ...cad,
     });

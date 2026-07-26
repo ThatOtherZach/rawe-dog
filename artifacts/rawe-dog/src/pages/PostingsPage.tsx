@@ -921,6 +921,7 @@ export default function PostingsPage() {
         <SearchCreditsPanel
           refreshKey={creditsBump}
           onChanged={() => setCreditsBump((n) => n + 1)}
+          limit={Number(limit) || 25}
         />
 
         <div className="flex flex-wrap items-center gap-2">

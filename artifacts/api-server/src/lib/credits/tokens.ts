@@ -84,12 +84,22 @@ export function creditsEnforced(): boolean {
  */
 const inflight = new Map<string, number>();
 
-/** Reserve a credit for a consuming run. False = balance already committed. */
-export function reserveCredit(tokenId: string, remaining: number): boolean {
+/**
+ * Reserve `needed` credits for a consuming run. Returns false when the
+ * remaining balance (less any already-reserved inflight units) is insufficient.
+ */
+export function reserveCredit(tokenId: string, remaining: number, needed = 1): boolean {
   const current = inflight.get(tokenId) ?? 0;
-  if (remaining - current < 1) return false;
-  inflight.set(tokenId, current + 1);
+  if (remaining - current < needed) return false;
+  inflight.set(tokenId, current + needed);
   return true;
+}
+
+export function releaseCredits(tokenId: string, count = 1): void {
+  const current = inflight.get(tokenId) ?? 0;
+  const next = current - count;
+  if (next <= 0) inflight.delete(tokenId);
+  else inflight.set(tokenId, next);
 }
 
 export function releaseCredit(tokenId: string): void {

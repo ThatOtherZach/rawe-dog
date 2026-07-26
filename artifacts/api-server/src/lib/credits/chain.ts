@@ -93,12 +93,38 @@ export function getCreditPriceCents(): number {
   return 500;
 }
 
-/** Price of ONE search credit in USD cents (default $1.00). */
+/** Price of ONE search credit in USD cents (default $1.00). Used as the per-unit rate in both flat and per-result modes. */
 export function getSearchCreditPriceCents(): number {
   const raw = process.env["RAWEDOG_SEARCH_CREDIT_PRICE_USD"]?.trim();
   const n = raw ? Number(raw) : NaN;
   if (Number.isFinite(n) && n > 0) return Math.round(n * 100);
   return 100;
+}
+
+/**
+ * Pricing mode for search credits.
+ *   flat       — one credit per refresh (default)
+ *   per-result — price scales with the filter's `limit` (max jobs to fetch)
+ */
+export type SearchPricingMode = "flat" | "per-result";
+
+export function getSearchPricingMode(): SearchPricingMode {
+  const raw = process.env["RAWEDOG_SEARCH_PRICING_MODE"]?.trim().toLowerCase();
+  return raw === "per-result" ? "per-result" : "flat";
+}
+
+/**
+ * Total price in cents for a search with the given limit.
+ * In flat mode this always equals getSearchCreditPriceCents().
+ * In per-result mode it equals getSearchCreditPriceCents() * limit.
+ */
+export function computeSearchPriceCents(limit: number): number {
+  const unitCents = getSearchCreditPriceCents();
+  if (getSearchPricingMode() === "per-result") {
+    const safeLimit = Math.max(1, Math.floor(limit));
+    return unitCents * safeLimit;
+  }
+  return unitCents;
 }
 
 /** How long a quote stays claimable (default 24h — $5 of ETH drift is ours to eat). */

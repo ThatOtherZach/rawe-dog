@@ -80,11 +80,11 @@ export function clearSavedSearchQuote(): void {
   }
 }
 
-export async function requestSearchQuote(asset: "eth" | "usdc"): Promise<CreditQuote> {
+export async function requestSearchQuote(asset: "eth" | "usdc", limit?: number): Promise<CreditQuote> {
   const res = await fetch("/api/credits/quote", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ asset }),
+    body: JSON.stringify({ asset, ...(limit !== undefined ? { limit } : {}) }),
   });
   const data = await res.json();
   if (!res.ok || !data.ok) throw new Error(data.error || `Quote failed (${res.status})`);
@@ -156,12 +156,16 @@ export function creditHeader(): Record<string, string> {
   return token ? { "X-Credit-Token": token } : {};
 }
 
+export type SearchPricingMode = "flat" | "per-result";
+
 export type CreditStatus = {
   ok: boolean;
   enforced: boolean;
   /** True when a TheirStack API key is configured server-side. */
   providerConfigured?: boolean;
   priceUsdCents: number;
+  /** Controls whether price scales with the search limit. Absent = flat (old server). */
+  pricingMode?: SearchPricingMode;
   crypto: { available: boolean; network?: string; receivingAddress?: string };
   token: { valid: boolean; remaining: number; reason?: string } | null;
 };

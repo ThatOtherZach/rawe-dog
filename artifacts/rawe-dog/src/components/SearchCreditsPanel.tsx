@@ -12,15 +12,21 @@ import {
 
 /**
  * Search-credit purchase panel — only rendered when the server has the credit
- * gate armed (RAWEDOG_CREDITS_ENFORCED). Buying a $1 search credit unlocks one
+ * gate armed (RAWEDOG_CREDITS_ENFORCED). Buying a search credit unlocks one
  * TheirStack postings refresh. No accounts: ETH/USDC on Base or promo code.
+ *
+ * In per-result pricing mode, pass `limit` (the filter's max-jobs value) so the
+ * panel can display and quote the correct scaled price.
  */
 export function SearchCreditsPanel({
   refreshKey,
   onChanged,
+  limit,
 }: {
   refreshKey: number;
   onChanged: () => void;
+  /** Current filter limit (max jobs to fetch). Used for per-result pricing display. */
+  limit?: number;
 }) {
   const [status, setStatus] = useState<CreditStatus | null>(null);
   const [quote, setQuote] = useState<CreditQuote | null>(() => getSavedSearchQuote());
@@ -51,7 +57,11 @@ export function SearchCreditsPanel({
 
   const hasCredit = Boolean(status.token?.valid);
   const remaining = status.token?.remaining ?? 0;
-  const priceUsd = (status.priceUsdCents / 100).toFixed(2);
+  const pricingMode = status.pricingMode ?? "flat";
+  const unitCents = status.priceUsdCents;
+  const effectiveLimit = Math.max(1, Math.floor(limit ?? 1));
+  const totalCents = pricingMode === "per-result" ? unitCents * effectiveLimit : unitCents;
+  const priceUsd = (totalCents / 100).toFixed(2);
   const providerReady = status.providerConfigured !== false; // treat undefined (old server) as ready
 
   async function startQuote(asset: "eth" | "usdc") {
@@ -59,7 +69,7 @@ export function SearchCreditsPanel({
     setPendingNote(null);
     setQuoting(asset);
     try {
-      setQuote(await requestSearchQuote(asset));
+      setQuote(await requestSearchQuote(asset, pricingMode === "per-result" ? effectiveLimit : undefined));
       setTxHash("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -119,7 +129,10 @@ export function SearchCreditsPanel({
           {hasCredit ? `${remaining} ready` : "none"}
         </span>
         <span className="ml-auto text-xs text-[var(--muted)]">
-          ${priceUsd} per refresh · consumed only when postings are fetched
+          {pricingMode === "per-result"
+            ? `$${priceUsd} for up to ${effectiveLimit} jobs · $${(unitCents / 100).toFixed(2)} per job`
+            : `$${priceUsd} per refresh`}{" "}
+          · consumed only when postings are fetched
         </span>
       </div>
 

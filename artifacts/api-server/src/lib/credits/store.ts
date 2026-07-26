@@ -20,6 +20,12 @@ export interface CreditQuote {
   /** Atomic amount as a decimal string (wei / USDC base units). */
   amountAtomic: string;
   priceCents: number;
+  /**
+   * How many credit units this quote covers. In flat mode this is always 1.
+   * In per-result mode it equals the filter's limit (one unit per job slot paid
+   * for). The token minted on settlement carries this many credits.
+   */
+  creditUnits: number;
   network: string;
   receivingAddress: string;
   status: "pending" | "paid";
@@ -148,6 +154,8 @@ export function createQuoteWithUniqueAmount(opts: {
   asset: CryptoAsset;
   baseAmount: bigint;
   priceCents: number;
+  /** Credit units this quote covers (1 for flat mode, limit for per-result). */
+  creditUnits: number;
   network: string;
   receivingAddress: string;
   ttlMs: number;
@@ -166,6 +174,7 @@ export function createQuoteWithUniqueAmount(opts: {
         asset: opts.asset,
         amountAtomic: candidate,
         priceCents: opts.priceCents,
+        creditUnits: opts.creditUnits,
         network: opts.network,
         receivingAddress: opts.receivingAddress,
         status: "pending",
@@ -210,12 +219,13 @@ export function claimQuoteAndIssueToken(
     if (data.tokens.some((t) => t.txHash?.toLowerCase() === txHash)) return { ok: false, reason: "tx_used" };
     quote.status = "paid";
     quote.txHash = txHash;
+    const units = quote.creditUnits ?? 1;
     const token: CreditToken = {
       id: randomUUID(),
       source: "crypto",
       kind,
-      credits: 1,
-      remaining: 1,
+      credits: units,
+      remaining: units,
       issuedAt: Date.now(),
       txHash,
     };
@@ -240,10 +250,15 @@ export function getToken(id: string): Promise<CreditToken | null> {
 
 /** Atomically consume one credit. Returns the updated token or null if empty/unknown. */
 export function spendCredit(id: string): Promise<CreditToken | null> {
+  return spendCredits(id, 1);
+}
+
+/** Atomically consume `n` credits. Returns the updated token or null if insufficient/unknown. */
+export function spendCredits(id: string, n: number): Promise<CreditToken | null> {
   return withStore((data) => {
     const token = data.tokens.find((t) => t.id === id);
-    if (!token || token.remaining < 1) return null;
-    token.remaining -= 1;
+    if (!token || token.remaining < n) return null;
+    token.remaining -= n;
     token.lastSpentAt = Date.now();
     return { ...token };
   });

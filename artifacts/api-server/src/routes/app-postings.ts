@@ -21,8 +21,9 @@ import { briefIsUsable } from "../lib/jobs/brief.js";
 import { TheirStackProvider } from "../lib/jobs/theirstack.js";
 import { deriveFiltersFromProfile, scorePostings } from "../lib/jobs/match.js";
 import { loadMasterProfile, loadAllExperiences } from "../lib/context-pack.js";
-import { checkToken, creditsEnforced, reserveCredit, releaseCredit } from "../lib/credits/tokens.js";
-import { spendCredit } from "../lib/credits/store.js";
+import { checkToken, creditsEnforced, reserveCredit, releaseCredits } from "../lib/credits/tokens.js";
+import { spendCredits } from "../lib/credits/store.js";
+import { getSearchPricingMode } from "../lib/credits/chain.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
@@ -145,6 +146,7 @@ router.post("/postings/refresh", async (req: Request, res: Response) => {
   // can never burn a credit. Reserve up front; spend only after postings
   // persist; release (without spending) on any failure path.
   let reservedSearchTokenId: string | null = null;
+  let reservedCreditUnits = 1;
   if (creditsEnforced()) {
     const check = await checkToken(req.header("x-credit-token") ?? undefined, "search");
     if (!check.ok) {
@@ -161,7 +163,30 @@ router.post("/postings/refresh", async (req: Request, res: Response) => {
       res.status(402).json({ ok: false, error: why, code: "credit_required", reason: check.reason });
       return;
     }
-    if (!reserveCredit(check.token.id, check.token.remaining)) {
+
+    // In per-result mode, a token covers `filters.limit` units rather than 1.
+    // Read the saved limit now to determine how many credits this refresh costs.
+    if (getSearchPricingMode() === "per-result") {
+      const pFile = loadPostingsFile();
+      const savedLimit = pFile.filters?.limit;
+      reservedCreditUnits = savedLimit && savedLimit > 0 ? Math.floor(savedLimit) : 1;
+    }
+
+    // Verify the token has enough remaining credits for this refresh.
+    if (check.token.remaining < reservedCreditUnits) {
+      res.status(402).json({
+        ok: false,
+        error:
+          reservedCreditUnits > 1
+            ? `This refresh needs ${reservedCreditUnits} credits for up to ${reservedCreditUnits} jobs, but your token only has ${check.token.remaining} left — buy a new one.`
+            : "This search credit has already been used — get a fresh one.",
+        code: "credit_required",
+        reason: "empty",
+      });
+      return;
+    }
+
+    if (!reserveCredit(check.token.id, check.token.remaining, reservedCreditUnits)) {
       res.status(402).json({
         ok: false,
         error: "Your search credit is already funding a refresh in progress — wait for it to finish.",
@@ -178,7 +203,7 @@ router.post("/postings/refresh", async (req: Request, res: Response) => {
     // Release the reservation before returning — the in-flight guard means
     // no postings will be fetched, so no credit should be held.
     if (reservedSearchTokenId) {
-      releaseCredit(reservedSearchTokenId);
+      releaseCredits(reservedSearchTokenId, reservedCreditUnits);
       reservedSearchTokenId = null;
     }
     res.status(409).json({
@@ -216,13 +241,20 @@ router.post("/postings/refresh", async (req: Request, res: Response) => {
     // delivered. Provider/quota/network errors throw before here so they
     // never reach this point.
     if (reservedSearchTokenId) {
-      const spent = await spendCredit(reservedSearchTokenId);
+      const spent = await spendCredits(reservedSearchTokenId, reservedCreditUnits);
+      // Release the in-memory inflight reservation now that the ledger has been
+      // updated, so subsequent refreshes on the same (multi-unit) token are not
+      // falsely blocked.
+      releaseCredits(reservedSearchTokenId, reservedCreditUnits);
       if (spent) {
-        refreshLog.info({ evt: "credit_spent", remaining: spent.remaining }, "search credit consumed");
+        refreshLog.info(
+          { evt: "credit_spent", units: reservedCreditUnits, remaining: spent.remaining },
+          "search credit consumed",
+        );
       } else {
         refreshLog.warn({ evt: "credit_spend_failed" }, "search credit spend failed after successful fetch");
       }
-      reservedSearchTokenId = null; // Mark as spent so the finally block doesn't release it
+      reservedSearchTokenId = null; // Already released above; null stops the finally block from double-releasing
     }
 
     // Score anything without a fit yet (new + previously failed) so the
@@ -271,7 +303,7 @@ router.post("/postings/refresh", async (req: Request, res: Response) => {
     // Release reservation if we didn't spend (failure path: provider error,
     // filters missing, API key missing, etc.). Already null when spent.
     if (reservedSearchTokenId) {
-      releaseCredit(reservedSearchTokenId);
+      releaseCredits(reservedSearchTokenId, reservedCreditUnits);
     }
   }
 });
