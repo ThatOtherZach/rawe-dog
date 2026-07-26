@@ -10,8 +10,6 @@ export type AppSettings = {
   selectionModel: string;
   /** Optional fast/cheap model for verification + JSON repair. Empty = use `model`. */
   verificationModel: string;
-  /** TheirStack API key for the Postings page job search. */
-  theirstackApiKey: string;
   /**
    * Optional OpenAI-compatible base URL for LLM calls. Empty = use the
    * XAI_BASE_URL env hook, then fall back to https://api.x.ai/v1.
@@ -32,7 +30,6 @@ export function getDefaultSettings(): AppSettings {
     model: process.env["XAI_MODEL"]?.trim() || DEFAULT_MODEL,
     selectionModel: process.env["XAI_SELECTION_MODEL"]?.trim() || "",
     verificationModel: process.env["XAI_VERIFICATION_MODEL"]?.trim() || "",
-    theirstackApiKey: process.env["THEIRSTACK_API_KEY"]?.trim() || "",
     // No env default — apiEndpoint is intentionally user-only; env uses XAI_BASE_URL.
     apiEndpoint: "",
     runVerification: true,
@@ -46,13 +43,13 @@ export function loadSettings(): AppSettings {
     return defaults;
   }
   try {
-    const raw = JSON.parse(readFileSync(filePath, "utf8")) as Partial<AppSettings>;
+    const raw = JSON.parse(readFileSync(filePath, "utf8")) as Partial<AppSettings & { theirstackApiKey?: unknown }>;
     return {
       apiKey: (raw.apiKey ?? defaults.apiKey).trim(),
       model: (raw.model ?? defaults.model).trim() || DEFAULT_MODEL,
       selectionModel: (raw.selectionModel ?? defaults.selectionModel).trim(),
       verificationModel: (raw.verificationModel ?? defaults.verificationModel).trim(),
-      theirstackApiKey: (raw.theirstackApiKey ?? defaults.theirstackApiKey).trim(),
+      // theirstackApiKey is operator-only (env var); stored values are silently discarded.
       apiEndpoint: (raw.apiEndpoint ?? defaults.apiEndpoint).trim(),
       runVerification: raw.runVerification !== undefined ? Boolean(raw.runVerification) : defaults.runVerification,
     };
@@ -78,10 +75,7 @@ export function saveSettings(partial: Partial<AppSettings>): AppSettings {
       partial.verificationModel !== undefined
         ? partial.verificationModel.trim()
         : current.verificationModel,
-    theirstackApiKey:
-      partial.theirstackApiKey !== undefined
-        ? partial.theirstackApiKey.trim()
-        : current.theirstackApiKey,
+    // theirstackApiKey is operator-only; any incoming value is silently dropped.
     apiEndpoint:
       partial.apiEndpoint !== undefined
         ? partial.apiEndpoint.trim()
@@ -110,8 +104,8 @@ export function publicSettings() {
     model: s.model,
     selectionModel: s.selectionModel,
     verificationModel: s.verificationModel,
-    hasTheirstackKey: Boolean(s.theirstackApiKey),
-    theirstackKeyMasked: maskApiKey(s.theirstackApiKey),
+    // TheirStack is operator-supplied; reflects the env var only.
+    hasTheirstackKey: Boolean(process.env["THEIRSTACK_API_KEY"]?.trim()),
     // Shown plainly — not a secret.
     apiEndpoint: s.apiEndpoint,
     runVerification: s.runVerification,

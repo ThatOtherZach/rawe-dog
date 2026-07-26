@@ -40,7 +40,6 @@ import {
 import { encodeToken, checkToken, creditsEnforced } from "../lib/credits/tokens.js";
 import { cadBreakdownForUsdCents } from "../lib/credits/fxtax.js";
 import { logger } from "../lib/logger.js";
-import { loadSettings } from "../lib/settings.js";
 import { loadPostingsFile } from "../lib/jobs/store.js";
 
 const router = Router();
@@ -64,8 +63,7 @@ router.get("/credits/status", async (req: Request, res: Response) => {
         ? { valid: true, remaining: check.token.remaining }
         : { valid: false, remaining: 0, reason: check.reason };
     }
-    const settings = loadSettings();
-    const providerConfigured = Boolean(settings.theirstackApiKey);
+    const providerConfigured = Boolean(process.env["THEIRSTACK_API_KEY"]?.trim());
     res.json({
       ok: true,
       enforced,

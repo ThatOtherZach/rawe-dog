@@ -84,7 +84,7 @@ function statusCounts(postings: StoredPosting[]) {
 function statePayload(file: PostingsFile) {
   const s = loadSettings();
   return {
-    providerConfigured: Boolean(s.theirstackApiKey),
+    providerConfigured: Boolean(process.env["THEIRSTACK_API_KEY"]?.trim()),
     xaiConfigured: Boolean(s.apiKey),
     filters: file.filters,
     filtersSource: file.filtersSource,
@@ -150,8 +150,8 @@ router.post("/postings/refresh", async (req: Request, res: Response) => {
   if (creditsEnforced()) {
     const check = await checkToken(req.header("x-credit-token") ?? undefined, "search");
     if (!check.ok) {
-      const providerMissing = !loadSettings().theirstackApiKey;
-      const providerHint = providerMissing ? " (TheirStack key also missing — add it in Settings)" : "";
+      const providerMissing = !process.env["THEIRSTACK_API_KEY"]?.trim();
+      const providerHint = providerMissing ? " (TheirStack key is not configured on the platform)" : "";
       const why =
         check.reason === "missing"
           ? `A search credit is required to refresh postings — buy or redeem one.${providerHint}`
@@ -214,11 +214,11 @@ router.post("/postings/refresh", async (req: Request, res: Response) => {
   }
   refreshInFlight = true;
   try {
-    const settings = loadSettings();
-    if (!settings.theirstackApiKey) {
+    const theirstackApiKey = process.env["THEIRSTACK_API_KEY"]?.trim() || "";
+    if (!theirstackApiKey) {
       res.status(400).json({
         ok: false,
-        error: "Add a TheirStack API key on the Settings page first.",
+        error: "TheirStack is not configured on the platform — contact the operator.",
       });
       return;
     }
@@ -232,7 +232,7 @@ router.post("/postings/refresh", async (req: Request, res: Response) => {
       return;
     }
 
-    const provider = new TheirStackProvider(settings.theirstackApiKey);
+    const provider = new TheirStackProvider(theirstackApiKey);
     const { postings } = await provider.search(file.filters);
     const { added } = upsertPostings(postings);
 

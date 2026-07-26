@@ -8,7 +8,6 @@ type PublicSettings = {
   selectionModel: string;
   verificationModel: string;
   hasTheirstackKey: boolean;
-  theirstackKeyMasked: string;
   /** Stored endpoint, or "" if using the default. */
   apiEndpoint: string;
   /** When false, the verification + repair pass is skipped for all kits. */
@@ -26,14 +25,12 @@ const MODELS = [
 export default function SettingsPage() {
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [apiKey, setApiKey] = useState("");
-  const [theirstackKey, setTheirstackKey] = useState("");
   const [model, setModel] = useState("grok-4.5");
   const [selectionModel, setSelectionModel] = useState("");
   const [verificationModel, setVerificationModel] = useState("");
   const [apiEndpoint, setApiEndpoint] = useState("");
   const [runVerification, setRunVerification] = useState(true);
   const [showXaiInput, setShowXaiInput] = useState(false);
-  const [showTheirstackInput, setShowTheirstackInput] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -75,7 +72,6 @@ export default function SettingsPage() {
       selectionModel: string;
       verificationModel: string;
       apiKey?: string;
-      theirstackApiKey?: string;
       apiEndpoint: string;
       runVerification: boolean;
     } = {
@@ -88,7 +84,6 @@ export default function SettingsPage() {
     };
     const keyToSend = opts?.key ?? apiKey;
     if (keyToSend.trim()) body.apiKey = keyToSend.trim();
-    if (theirstackKey.trim()) body.theirstackApiKey = theirstackKey.trim();
 
     const res = await fetch("/api/settings", {
       method: "PUT",
@@ -105,7 +100,6 @@ export default function SettingsPage() {
       setApiKey("");
       setShowXaiInput(false);
     }
-    if (theirstackKey.trim()) { setTheirstackKey(""); setShowTheirstackInput(false); }
     return saved;
   }
 
@@ -164,33 +158,6 @@ export default function SettingsPage() {
       setSettings(data as PublicSettings);
       setApiKey("");
       setMessage("API key cleared.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function clearTheirstackKey() {
-    setBusy(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clearTheirstackKey: true,
-          model,
-          selectionModel,
-          verificationModel,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error((data as { error?: string }).error || "Failed");
-      setSettings(data as PublicSettings);
-      setTheirstackKey("");
-      setMessage("TheirStack key cleared.");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -445,61 +412,15 @@ export default function SettingsPage() {
       {/* TheirStack */}
       <section className="panel p-5">
         <div className="mb-4 flex items-center gap-2">
-          <h2 className="mr-auto text-base font-semibold">TheirStack Job Postings API</h2>
+          <h2 className="mr-auto text-base font-semibold">Job Search</h2>
           <span className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}>
-            {settings?.hasTheirstackKey ? "TheirStack API Active" : "TheirStack API missing"}
+            {settings?.hasTheirstackKey ? "Active" : "Not configured"}
           </span>
         </div>
-
-        <div className="space-y-5">
-          <div>
-            <label className="label">TheirStack API Key (Optional)</label>
-            {settings?.hasTheirstackKey && !showTheirstackInput ? (
-              <div className="flex items-center gap-3">
-                <code className="text-sm text-[var(--accent)]">{settings.theirstackKeyMasked}</code>
-                <button
-                  className="btn btn-danger text-xs"
-                  onClick={() => void clearTheirstackKey()}
-                  disabled={busy}
-                >
-                  Clear
-                </button>
-              </div>
-            ) : (
-              <>
-                <input
-                  className="input"
-                  type="password"
-                  placeholder="Paste your TheirStack API key"
-                  value={theirstackKey}
-                  onChange={(e) => setTheirstackKey(e.target.value)}
-                  disabled={busy}
-                  autoFocus={settings?.hasTheirstackKey}
-                />
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  Powers the Postings page (live job search). Get a free key at{" "}
-                  <a
-                    href="https://theirstack.com"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[var(--accent)] underline"
-                  >
-                    theirstack.com
-                  </a>{" "}
-                  — 200 job credits/month free, 1 credit per fetched posting.
-                </p>
-              </>
-            )}
-          </div>
-
-          {!settings?.hasTheirstackKey && (
-            <div className="flex flex-wrap gap-2">
-              <button className="btn btn-primary" onClick={() => void onSave()} disabled={busy}>
-                {busy ? "Saving…" : "Save"}
-              </button>
-            </div>
-          )}
-        </div>
+        <p className="text-sm text-[var(--muted)]">
+          Job search is platform-provided — no key required. The Postings page is powered by
+          TheirStack and configured by the operator.
+        </p>
       </section>
       {/* Danger zone */}
       <section className="panel p-5 border-[var(--danger)] border">
