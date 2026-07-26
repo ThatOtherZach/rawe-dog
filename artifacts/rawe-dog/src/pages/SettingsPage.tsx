@@ -418,7 +418,7 @@ export default function SettingsPage() {
                 </div>
                 <span className="text-sm">{generatePdf ? "On" : "Off"}</span>
               </label>
-              <p className="mt-1 text-xs text-[var(--muted)]">Turn on to generate PDF files. Note that this will result in longer generation times and Markdown, and DOCX files are still generated.</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">Turn on to generate PDF files. Note that this will result in longer generation times. Markdown, and DOCX files are still included.</p>
             </div>
           </div>
 
