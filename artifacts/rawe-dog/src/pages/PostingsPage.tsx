@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { SearchCreditsPanel } from "../components/SearchCreditsPanel";
 import { searchCreditHeader } from "../lib/credits";
@@ -383,6 +383,17 @@ export default function PostingsPage() {
   const [details, setDetails] = useState<Record<string, PostingDetail>>({});
   const [detailLoading, setDetailLoading] = useState(false);
 
+  /**
+   * Speculative Pass 1 prefetch (Instagram image pre-load pattern).
+   * When a posting row is expanded we immediately fire a background
+   * mode:"pass1" call.  If it resolves before the user clicks
+   * "Generate kit", GeneratePage reads the result from sessionStorage
+   * and skips its own Pass 1 call — jumping straight to drafting.
+   * One slot only: expanding a different row aborts the previous fetch
+   * and overwrites the cache entry.
+   */
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+
   const [showDismissed, setShowDismissed] = useState(false);
   const [patchingId, setPatchingId] = useState<string | null>(null);
   const [libraryBannerDismissed, setLibraryBannerDismissed] = useState(false);
@@ -575,9 +586,51 @@ export default function PostingsPage() {
   async function toggleExpand(id: string) {
     if (expandedId === id) {
       setExpandedId(null);
+      // Abort any in-flight prefetch and clear the cache slot when collapsing.
+      if (prefetchAbortRef.current) {
+        prefetchAbortRef.current.abort();
+        prefetchAbortRef.current = null;
+      }
+      try { sessionStorage.removeItem("rdPrefetchPass1"); } catch { /* ignore */ }
       return;
     }
+
+    // Abort the previous row's in-flight prefetch and clear its cache entry.
+    if (prefetchAbortRef.current) {
+      prefetchAbortRef.current.abort();
+      prefetchAbortRef.current = null;
+    }
+    try { sessionStorage.removeItem("rdPrefetchPass1"); } catch { /* ignore */ }
+
     setExpandedId(id);
+
+    // Fire speculative Pass 1 in the background — errors are silent cache misses.
+    const ac = new AbortController();
+    prefetchAbortRef.current = ac;
+    fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "pass1", postingId: id }),
+      signal: ac.signal,
+    })
+      .then((res) => res.json())
+      .then((data: { ok?: boolean; selection?: unknown; experienceOptions?: unknown; warning?: string }) => {
+        if (!ac.signal.aborted && data.ok && data.selection) {
+          try {
+            sessionStorage.setItem(
+              "rdPrefetchPass1",
+              JSON.stringify({
+                postingId: id,
+                selection: data.selection,
+                experienceOptions: data.experienceOptions ?? [],
+                warning: data.warning,
+              })
+            );
+          } catch { /* storage full or unavailable — treat as miss */ }
+        }
+      })
+      .catch(() => { /* silent miss */ });
+
     if (!details[id]) {
       setDetailLoading(true);
       try {

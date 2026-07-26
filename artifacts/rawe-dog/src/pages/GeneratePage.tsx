@@ -548,6 +548,37 @@ export default function GeneratePage() {
   }
 
   async function runPass1(opts?: { useFitPicks?: boolean }) {
+    // Check for a speculative prefetch result written by PostingsPage when the
+    // user expanded this posting row.  Only usable for the normal path (not the
+    // fit-picks shortcut which has its own override-leads logic).
+    if (!opts?.useFitPicks && linkedPosting) {
+      try {
+        const raw = sessionStorage.getItem("rdPrefetchPass1");
+        if (raw) {
+          const cached = JSON.parse(raw) as {
+            postingId: string;
+            selection: Selection;
+            experienceOptions: ExpOption[];
+            warning?: string;
+          };
+          if (cached.postingId === linkedPosting.id && cached.selection) {
+            // Consume and clear — each prefetch result is used at most once.
+            sessionStorage.removeItem("rdPrefetchPass1");
+            resetRunState();
+            setSelection(cached.selection);
+            setExpOptions(cached.experienceOptions || []);
+            setSelectedLeads(cached.selection.leadExperienceIds || []);
+            if (cached.warning) setWarning(cached.warning);
+            setStage("review");
+            snapProgress(45, "Review lead experiences, then write the kit.");
+            return;
+          }
+        }
+      } catch {
+        // sessionStorage unavailable or JSON malformed — fall through to normal pass1.
+      }
+    }
+
     resetRunState();
     setStage("pass1");
     snapProgress(5, "Pass 1: selecting experiences…");
