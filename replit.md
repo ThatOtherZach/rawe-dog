@@ -4,19 +4,17 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (binds to `$PORT`, default 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `SESSION_SECRET` — HMAC signing key for credit tokens
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
+- API: Express 5 — no database; all state in flat JSON files under `artifacts/api-server/data/`
+- Validation: Zod (`zod/v4`)
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
@@ -49,7 +47,9 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 - Status is updated via `PATCH /api/postings/:id/status`. Generating a kit from a `postingId` automatically flips its status to `kit_generated`.
 - The list endpoint returns status counts (`newCount`, `kitGeneratedCount`, `appliedCount`, `dismissedCount`) for summary display.
 - Dismissed postings are hidden by default in the UI with a toggle to reveal them.
-- **CSV export**: `GET /api/postings/export.csv` returns all applied postings as a UTF-8 CSV (BOM included for Excel). Columns: title, company, location, URL, applied-at (reserved — not yet tracked), fit score, kit generated, kit generated at, cross-listing flag, suspicious flag. The "Export applied jobs" button appears on the Postings page only when at least one posting is applied.
+- **`appliedAt` timestamp**: set the first time a posting transitions to `"applied"`; **never overwritten** on subsequent status round-trips (applied → reverted → re-applied keeps the original timestamp). Stored on `StoredPosting.appliedAt`.
+- **`kitGeneratedAt` timestamp**: set the first time a posting transitions to `"kit_generated"`; also never overwritten. Stored on `StoredPosting.kitGeneratedAt`.
+- **CSV export**: `GET /api/postings/export.csv` returns all applied postings as a UTF-8 CSV (BOM included for Excel). Columns: title, company, location, URL, applied-at, fit score, kit generated (yes/no), kit generated at, cross-listing flag, suspicious flag. The "Export applied jobs" button appears on the Postings page only when at least one posting is applied.
 
 ### Pay-per-search credits (the toasteth pattern)
 - **Two lanes**: kit generation is **free** (no credit check on `/api/generate`); a $1 search credit is required to refresh postings via `/api/postings/refresh` (when `RAWEDOG_CREDITS_ENFORCED=true`). Paying gets you speed + targeting (pre-scored postings), not gated output quality.
@@ -73,6 +73,7 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 | `PUT` | `/api/postings/filters` | Save manually-edited search filters |
 | `GET` | `/api/postings/:id` | Full posting detail + canonical brief + raw description |
 | `PATCH` | `/api/postings/:id/status` | Update posting status (new/kit_generated/applied/dismissed) |
+| `GET` | `/api/postings/export.csv` | Download applied postings as CSV (UTF-8 BOM, Excel-safe) |
 | `GET` | `/api/library` | List library files |
 | `POST` | `/api/library/compose` | Quiz-compose a knowledge doc from interview answers (returns a markdown draft; saving is a separate explicit upload) |
 | `GET/POST/DELETE` | `/api/settings` | Read/update/clear settings (xAI key, TheirStack key, models) |
@@ -87,8 +88,7 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `DATABASE_URL` | Yes | Postgres connection string |
-| `SESSION_SECRET` | Yes | Express session signing |
+| `SESSION_SECRET` | Yes | HMAC key for credit token signing — losing it voids all outstanding tokens |
 | `XAI_BASE_URL` | Dev/test | Override xAI endpoint (e.g. local mock server for e2e tests) |
 | `THEIRSTACK_BASE_URL` | Dev/test | Override TheirStack endpoint (e.g. local mock server) |
 | `RAWEDOG_CREDITS_ENFORCED` | No | `true` arms the search credit gate on `POST /api/postings/refresh` (off by default) |
@@ -107,7 +107,7 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 
 **Generate page**: Paste a job posting → Pass 1 selects lead experiences from the library (reviewable) → four documents draft in parallel → a verification pass checks grounding, cross-document consistency, form rules, and keyword coverage → flagged documents get one repair round. Kit tabs fill progressively; a quality report shows findings, keyword coverage, and repair status.
 
-**Postings page**: Browse live job matches scored against your profile. Derive search filters from your Master Profile or edit them manually. Hit Refresh to fetch new results from TheirStack. Each posting shows a fit score (0-100), rationale, and the experiences that matched. Expand a row for the canonical brief (must-haves, ATS keywords, responsibilities) and full description. Click "Generate Kit" to start kit generation using the stored brief — no copy-pasting required. Mark postings as Applied or Dismissed to keep the feed actionable.
+**Postings page**: Browse live job matches scored against your profile. Derive search filters from your Master Profile or edit them manually. Hit Refresh to fetch new results from TheirStack (costs a $1 search credit when enforcement is on). Each posting shows a fit score (0-100), rationale, and the experiences that matched. Expand a row for the canonical brief (must-haves, ATS keywords, responsibilities) and full description. Click "Generate Kit" to start kit generation using the stored brief — no copy-pasting required. Mark postings as Applied or Dismissed to keep the feed actionable. **Export applied jobs** as a CSV (title, company, location, URL, applied-at, fit score, kit timestamps, flags) for a clean handoff record.
 
 **Library page**: Manage knowledge files — Master Profile, experience entries, and resume/cover-letter templates. Each knowledge slot has a **Create** button (guided interview → model drafts the file against the starter skeleton → review/tweak/regenerate → accept to save), a **Template** link (download starter), and a direct upload. Experience loops one role at a time, oldest first. Creating is BYOM (needs the AI LLM key) and never credit-gated.
 
@@ -115,7 +115,9 @@ Generates tailored job-application kits (resume, cover letter, alignment notes, 
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- **Update all docs after every task** — replit.md, affected `.agents/memory/` topic files, and inline code comments. This is a standing instruction, not task-specific.
+- **No accounts, no server-side persistence beyond what the user explicitly saved** — the system is intentionally accountless and ephemeral. Users have full data control. Nothing is retained without user action. This principle applies to all future features.
+- **Keep the XP/achievements system out of replit.md** — it's a product Easter egg; document it only in `.agents/memory/`.
 
 ## Gotchas
 
@@ -123,7 +125,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 - `THEIRSTACK_BASE_URL` / `XAI_BASE_URL` env hooks make e2e testing against local mock servers straightforward (see `.agents/memory/llm-mock-e2e.md` for the pattern).
 - The postings refresh uses an in-process mutex (`refreshInFlight`). Only one refresh can run at a time; concurrent requests get a 409. This is intentional — queuing them would silently burn TheirStack credits.
 - `fenceData()` in `prompt.ts` must be used for every piece of provider-supplied text before it reaches a prompt. It strips lookalike fence markers so content cannot escape its untrusted-data boundary.
-- The credit gate is invisible when off: `CreditsPanel` renders nothing and `/api/generate` skips all credit checks unless `RAWEDOG_CREDITS_ENFORCED=true`. Losing `SESSION_SECRET` invalidates every issued credit token (HMAC), even though ledger rows survive.
+- The credit gate is invisible when off: `SearchCreditsPanel` renders nothing and `/api/postings/refresh` skips the credit check unless `RAWEDOG_CREDITS_ENFORCED=true`. `/api/generate` is always free — no credit check. Losing `SESSION_SECRET` invalidates every issued credit token (HMAC), even though ledger rows survive.
+- `appliedAt` and `kitGeneratedAt` on `StoredPosting` are write-once: set on the first transition to that status, never overwritten on subsequent round-trips. If you change `setPostingStatus`, preserve the `if (!sp.appliedAt)` guard.
 - Credit consumption is spend-after-deliver: the credit is debited after the kit succeeds, backed by an in-flight reservation so one credit can't fund parallel runs. Don't move the spend earlier (failed runs must stay free), and don't remove the reservation (that reopens the parallel-run bypass).
 - The starter skeletons are duplicated: `artifacts/rawe-dog/public/starters/*.md` (user downloads) and `STARTER_SKELETONS` in `artifacts/api-server/src/lib/compose.ts` (quiz-compose prompts — the server can't read the web artifact's public dir in production). A drift-guard unit test in `tests/specs/quiz-compose.spec.ts` fails if they diverge; update both together.
 - In dev, the vite server (`:24020`) has no `/api` proxy — the platform router on `localhost:80` joins the web app and API server. Curl APIs via `localhost:80/api/…`; hitting `:24020/api/…` returns the SPA HTML (GET) or 404 (POST). Playwright specs intercept all `/api` calls, so they run against `:24020` fine.
