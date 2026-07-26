@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { SearchCreditsPanel } from "../components/SearchCreditsPanel";
 import { searchCreditHeader } from "../lib/credits";
 import { awardXp } from "../lib/xpStore";
@@ -285,11 +285,13 @@ function DigestStrip({
   patchingId,
   onCardClick,
   onPatch,
+  onViewClick,
 }: {
   picks: PostingSummary[];
   patchingId: string | null;
   onCardClick: (id: string) => void;
   onPatch: (id: string, status: PostingStatus) => void;
+  onViewClick: (id: string) => void;
 }) {
   if (picks.length === 0) return null;
   return (
@@ -342,12 +344,12 @@ function DigestStrip({
                 >
                   {isPatching ? "…" : "Dismiss"}
                 </button>
-                <Link
-                  href={`/?posting=${encodeURIComponent(p.id)}`}
+                <button
                   className="btn btn-primary !px-2.5 !py-1 text-xs"
+                  onClick={() => onViewClick(p.id)}
                 >
-                  Generate kit
-                </Link>
+                  View
+                </button>
               </div>
             </div>
           );
@@ -358,6 +360,7 @@ function DigestStrip({
 }
 
 export default function PostingsPage() {
+  const [, navigate] = useLocation();
   const [state, setState] = useState<PostingsState | null>(null);
   const [editing, setEditing] = useState(false);
 
@@ -703,6 +706,51 @@ export default function PostingsPage() {
       const el = document.getElementById(`posting-${id}`);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
+  }
+
+  function handleViewClick(id: string) {
+    // Fire speculative Pass 1 prefetch if there is no valid cache entry yet.
+    const PREFETCH_TTL_MS = 5 * 60 * 1000;
+    let alreadyCached = false;
+    try {
+      const raw = sessionStorage.getItem("rdPrefetchPass1");
+      if (raw) {
+        const cached = JSON.parse(raw) as { postingId: string; cachedAt?: number };
+        const age = cached.cachedAt ? Date.now() - cached.cachedAt : Infinity;
+        if (cached.postingId === id && age < PREFETCH_TTL_MS) {
+          alreadyCached = true;
+        }
+      }
+    } catch { /* storage unavailable — treat as miss */ }
+
+    if (!alreadyCached) {
+      // Fire and forget — do not await; navigate immediately after.
+      fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "pass1", postingId: id }),
+      })
+        .then((res) => res.json())
+        .then((data: { ok?: boolean; selection?: unknown; experienceOptions?: unknown; warning?: string }) => {
+          if (data.ok && data.selection) {
+            try {
+              sessionStorage.setItem(
+                "rdPrefetchPass1",
+                JSON.stringify({
+                  postingId: id,
+                  cachedAt: Date.now(),
+                  selection: data.selection,
+                  experienceOptions: data.experienceOptions ?? [],
+                  warning: data.warning,
+                })
+              );
+            } catch { /* storage full or unavailable — treat as miss */ }
+          }
+        })
+        .catch(() => { /* silent miss */ });
+    }
+
+    navigate(`/?posting=${encodeURIComponent(id)}`);
   }
 
   return (
@@ -1089,6 +1137,7 @@ export default function PostingsPage() {
           patchingId={patchingId}
           onCardClick={handleDigestCardClick}
           onPatch={(id, status) => void patchStatus(id, status)}
+          onViewClick={handleViewClick}
         />
       )}
 
