@@ -313,7 +313,7 @@ function ProfilePanel({ profile, onClose }: { profile: Profile; onClose: () => v
               />
             </label>
           </div>
-          <p className="mt-2 text-[10px] text-[var(--muted)]">Export downloads your profile as JSON. Import merges a saved profile — higher XP and union of achievements always win. XP has no cash value; like Jeff the intern.</p>
+          <p className="mt-2 text-[10px] text-[var(--muted)]">Export your profile and  import it to update. earn XP by generating and applying for jobs and unlock achievements. XP has ZERO cash value, just like our interns.</p>
         </div>
       </div>
     </div>
