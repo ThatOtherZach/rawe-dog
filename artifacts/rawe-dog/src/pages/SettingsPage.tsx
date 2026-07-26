@@ -463,18 +463,6 @@ export default function SettingsPage() {
         </div>
       </section>
       {/* TheirStack */}
-      <section className="panel p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <h2 className="mr-auto text-base font-semibold">Job Search</h2>
-          <span className={`badge ${settings?.hasTheirstackKey ? "badge-ok" : "badge-bad"}`}>
-            {settings?.hasTheirstackKey ? "Active" : "Not configured"}
-          </span>
-        </div>
-        <p className="text-sm text-[var(--muted)]">
-          Job search is platform-provided — no key required. The Postings page is powered by
-          TheirStack and configured by the operator.
-        </p>
-      </section>
       {/* Danger zone */}
       <section className="panel p-5 border-[var(--danger)] border">
         <h2 className="mb-1 text-base font-semibold text-[var(--danger)]">Danger zone</h2>
