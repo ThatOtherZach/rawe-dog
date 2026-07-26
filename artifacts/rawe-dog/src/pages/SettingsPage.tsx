@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { awardXp } from "../lib/xpStore";
+import { awardXp, wipeXpData } from "../lib/xpStore";
 
 type PublicSettings = {
   hasApiKey: boolean;
@@ -188,8 +188,11 @@ export default function SettingsPage() {
       setWipeConfirmText("");
       // Refresh settings to reflect clean state
       void refresh();
-      // XP: burned it down
-      if (data.allOk) awardXp("data_wipe");
+      // Clear XP profile and award the "Burned It Down" achievement (ironic, but earned)
+      if (data.allOk) {
+        wipeXpData();
+        awardXp("data_wipe");
+      }
     } catch (err) {
       setWipeError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -533,6 +536,7 @@ export default function SettingsPage() {
                 <li>All library files — Master Profile, experiences, templates</li>
                 <li>Postings cache and saved search filters</li>
                 <li>Saved settings — API key, models, custom endpoint</li>
+                <li>XP profile, achievements, and activity history</li>
               </ul>
               <p className="mb-3 text-xs text-[var(--muted)]">
                 <span className="font-semibold text-[var(--fg)]">Not deleted:</span> your credits

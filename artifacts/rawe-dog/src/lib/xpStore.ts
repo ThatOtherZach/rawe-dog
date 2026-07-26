@@ -679,6 +679,21 @@ export function checkIdleReturn(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Full wipe — called from the Settings danger-zone action
+// ---------------------------------------------------------------------------
+
+export function wipeXpData(): void {
+  try {
+    localStorage.removeItem(LS_PROFILE_KEY);
+    localStorage.removeItem(LS_KIT_EVER_KEY);
+    sessionStorage.removeItem(SS_SESSION_KEY);
+    dispatchXpUpdated(0);
+  } catch {
+    // no-op
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Export / Import
 // ---------------------------------------------------------------------------
 
