@@ -302,9 +302,7 @@ function ProfilePanel({ profile, onClose }: { profile: Profile; onClose: () => v
           {importOk && (
             <p className="mb-2 text-xs text-[var(--accent)]">Profile imported and merged ✓</p>
           )}
-          <p className="mb-3 text-xs text-[var(--muted)]">
-            Earn XP by generating kits and applying for jobs. Export your profile to back it up; import to restore or merge from another device.
-          </p>
+          <p className="mb-3 text-xs text-[var(--muted)]">Earn XP by generating kits and applying for jobs. Export your profile to back it up; import to restore or merge from another device. XP has ZERO cash value.</p>
           <div className="flex flex-wrap gap-2">
             <button
               className="btn btn-primary flex-1"
