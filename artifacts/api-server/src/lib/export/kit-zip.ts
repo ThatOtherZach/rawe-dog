@@ -37,8 +37,10 @@ function kitDocs(kit: ApplicationKit): KitDoc[] {
 
 export async function buildKitZip(
   kit: ApplicationKit,
-  baseName?: string
+  baseName?: string,
+  opts?: { includePdf?: boolean }
 ): Promise<Buffer> {
+  const includePdf = opts?.includePdf ?? true;
   const zip = new JSZip();
   const company = slugifyFilename(
     kit.meta.company || kit.meta.targetTitle || "application",
@@ -52,7 +54,7 @@ export async function buildKitZip(
     if (doc.formats.includes("md")) {
       zip.file(`${stem}.md`, md);
     }
-    if (doc.formats.includes("pdf")) {
+    if (includePdf && doc.formats.includes("pdf")) {
       zip.file(
         `${stem}.pdf`,
         await markdownToPdfBuffer(md, doc.label)

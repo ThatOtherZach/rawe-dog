@@ -12,6 +12,8 @@ type PublicSettings = {
   apiEndpoint: string;
   /** When false, the verification + repair pass is skipped for all kits. */
   runVerification: boolean;
+  /** When true, a PDF is generated alongside the kit and included in the ZIP export. */
+  generatePdf: boolean;
 };
 
 const MODELS = [
@@ -30,6 +32,7 @@ export default function SettingsPage() {
   const [verificationModel, setVerificationModel] = useState("");
   const [apiEndpoint, setApiEndpoint] = useState("");
   const [runVerification, setRunVerification] = useState(true);
+  const [generatePdf, setGeneratePdf] = useState(false);
   const [showXaiInput, setShowXaiInput] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +57,7 @@ export default function SettingsPage() {
     setVerificationModel(MODELS.includes(data.verificationModel) ? data.verificationModel : "");
     setApiEndpoint(data.apiEndpoint ?? "");
     setRunVerification(data.runVerification !== false);
+    setGeneratePdf(Boolean(data.generatePdf));
   }, []);
 
   const refresh = useCallback(async () => {
@@ -74,6 +78,7 @@ export default function SettingsPage() {
       apiKey?: string;
       apiEndpoint: string;
       runVerification: boolean;
+      generatePdf: boolean;
     } = {
       model,
       selectionModel,
@@ -81,6 +86,7 @@ export default function SettingsPage() {
       // Always send endpoint (empty string = clear/use default).
       apiEndpoint: apiEndpoint.trim(),
       runVerification,
+      generatePdf,
     };
     const keyToSend = opts?.key ?? apiKey;
     if (keyToSend.trim()) body.apiKey = keyToSend.trim();
@@ -360,31 +366,60 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div>
-            <label className="label">Document Verification</label>
-            <label className="flex cursor-pointer items-center gap-3">
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={runVerification}
-                  onChange={(e) => setRunVerification(e.target.checked)}
-                  disabled={busy}
-                />
-                <div
-                  className={`h-5 w-9 rounded-full transition-colors ${
-                    runVerification ? "bg-[var(--accent)]" : "bg-[var(--border)]"
-                  }`}
-                />
-                <div
-                  className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                    runVerification ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
-              </div>
-              <span className="text-sm">{runVerification ? "On" : "Off"}</span>
-            </label>
-            <p className="mt-1 text-xs text-[var(--muted)]">Generates a QA verification report for grounding documents. Note that this will result in longer generation times. </p>
+          <div className="flex flex-wrap gap-6">
+            <div className="flex-1 min-w-[200px]">
+              <label className="label">Document Verification</label>
+              <label className="flex cursor-pointer items-center gap-3">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={runVerification}
+                    onChange={(e) => setRunVerification(e.target.checked)}
+                    disabled={busy}
+                  />
+                  <div
+                    className={`h-5 w-9 rounded-full transition-colors ${
+                      runVerification ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+                    }`}
+                  />
+                  <div
+                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      runVerification ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </div>
+                <span className="text-sm">{runVerification ? "On" : "Off"}</span>
+              </label>
+              <p className="mt-1 text-xs text-[var(--muted)]">Generates a QA verification report for grounding documents. Note that this will result in longer generation times.</p>
+            </div>
+
+            <div className="flex-1 min-w-[200px]">
+              <label className="label">PDF Export</label>
+              <label className="flex cursor-pointer items-center gap-3">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={generatePdf}
+                    onChange={(e) => setGeneratePdf(e.target.checked)}
+                    disabled={busy}
+                  />
+                  <div
+                    className={`h-5 w-9 rounded-full transition-colors ${
+                      generatePdf ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+                    }`}
+                  />
+                  <div
+                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      generatePdf ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </div>
+                <span className="text-sm">{generatePdf ? "On" : "Off"}</span>
+              </label>
+              <p className="mt-1 text-xs text-[var(--muted)]">Generates a PDF alongside the kit. Note that this will result in longer generation times.</p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">

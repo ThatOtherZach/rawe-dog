@@ -15,6 +15,7 @@ router.get("/health", (_req, res) => {
     settings: {
       hasApiKey: settings.hasApiKey,
       model: settings.model,
+      generatePdf: settings.generatePdf,
     },
     library: {
       ready: readiness.ready,

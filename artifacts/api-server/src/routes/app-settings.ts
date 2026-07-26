@@ -32,6 +32,7 @@ router.put("/settings", async (req: Request, res: Response) => {
     // theirstackApiKey / clearTheirstackKey are silently ignored — TheirStack is operator-only.
     apiEndpoint?: string;
     runVerification?: boolean;
+    generatePdf?: boolean;
   };
 
   const current = loadSettings();
@@ -42,6 +43,7 @@ router.put("/settings", async (req: Request, res: Response) => {
     verificationModel?: string;
     apiEndpoint?: string;
     runVerification?: boolean;
+    generatePdf?: boolean;
   } = {};
 
   if (body.clearApiKey) {
@@ -73,6 +75,10 @@ router.put("/settings", async (req: Request, res: Response) => {
 
   if (typeof body.runVerification === "boolean") {
     partial.runVerification = body.runVerification;
+  }
+
+  if (typeof body.generatePdf === "boolean") {
+    partial.generatePdf = body.generatePdf;
   }
 
   if (partial.apiKey === undefined) {

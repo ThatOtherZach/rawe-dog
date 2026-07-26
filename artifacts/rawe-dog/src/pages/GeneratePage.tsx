@@ -4,7 +4,7 @@ import { awardXp } from "../lib/xpStore";
 import { MarkdownView } from "../components/MarkdownView";
 
 type Health = {
-  settings: { hasApiKey: boolean; model: string };
+  settings: { hasApiKey: boolean; model: string; generatePdf?: boolean };
   library: {
     ready: boolean;
     masterProfile: boolean;
@@ -1195,13 +1195,15 @@ export default function GeneratePage() {
                   </button>
                   {!isMarkdownTab && (
                     <>
-                      <button
-                        className="btn btn-primary"
-                        disabled={exporting || !activeMarkdown}
-                        onClick={() => void download("pdf")}
-                      >
-                        PDF
-                      </button>
+                      {health?.settings.generatePdf && (
+                        <button
+                          className="btn btn-primary"
+                          disabled={exporting || !activeMarkdown}
+                          onClick={() => void download("pdf")}
+                        >
+                          PDF
+                        </button>
+                      )}
                       <button
                         className="btn"
                         disabled={exporting || !activeMarkdown}

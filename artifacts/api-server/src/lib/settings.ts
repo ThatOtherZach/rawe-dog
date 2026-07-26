@@ -20,6 +20,12 @@ export type AppSettings = {
    * generations (posting-sourced and paste-sourced alike). Default true.
    */
   runVerification: boolean;
+  /**
+   * When true, a PDF is generated alongside the kit (and included in the ZIP
+   * export). Default false — PDF generation adds latency and most users only
+   * need DOCX/MD.
+   */
+  generatePdf: boolean;
 };
 
 const DEFAULT_MODEL = "grok-4.5";
@@ -33,6 +39,7 @@ export function getDefaultSettings(): AppSettings {
     // No env default — apiEndpoint is intentionally user-only; env uses XAI_BASE_URL.
     apiEndpoint: "",
     runVerification: true,
+    generatePdf: false,
   };
 }
 
@@ -52,6 +59,7 @@ export function loadSettings(): AppSettings {
       // theirstackApiKey is operator-only (env var); stored values are silently discarded.
       apiEndpoint: (raw.apiEndpoint ?? defaults.apiEndpoint).trim(),
       runVerification: raw.runVerification !== undefined ? Boolean(raw.runVerification) : defaults.runVerification,
+      generatePdf: raw.generatePdf !== undefined ? Boolean(raw.generatePdf) : defaults.generatePdf,
     };
   } catch {
     return defaults;
@@ -84,6 +92,10 @@ export function saveSettings(partial: Partial<AppSettings>): AppSettings {
       partial.runVerification !== undefined
         ? Boolean(partial.runVerification)
         : current.runVerification,
+    generatePdf:
+      partial.generatePdf !== undefined
+        ? Boolean(partial.generatePdf)
+        : current.generatePdf,
   };
   mkdirSync(getDataRoot(), { recursive: true });
   writeFileSync(getSettingsPath(), JSON.stringify(next, null, 2), "utf8");
@@ -109,6 +121,7 @@ export function publicSettings() {
     // Shown plainly — not a secret.
     apiEndpoint: s.apiEndpoint,
     runVerification: s.runVerification,
+    generatePdf: s.generatePdf,
   };
 }
 

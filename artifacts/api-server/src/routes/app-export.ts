@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { markdownToPdfBuffer } from "../lib/export/pdf.js";
 import { markdownToDocxBuffer } from "../lib/export/docx.js";
 import { buildKitZip } from "../lib/export/kit-zip.js";
+import { loadSettings } from "../lib/settings.js";
 import { cleanDocumentMarkdown, slugifyFilename } from "../lib/clean-md.js";
 import type { ApplicationKit } from "../lib/parse-kit.js";
 
@@ -107,12 +108,14 @@ router.post("/export", async (req: Request, res: Response) => {
     const format = body.format || "md";
     const base = slugifyFilename(body.filename || "document");
 
+    const settings = loadSettings();
+
     if (format === "zip") {
       if (!body.kit) {
         res.status(400).json({ error: "kit is required for zip export" });
         return;
       }
-      const buf = await buildKitZip(body.kit, base);
+      const buf = await buildKitZip(body.kit, base, { includePdf: settings.generatePdf });
       if (buf.length === 0 || !hasMagic(buf, ZIP_MAGIC)) {
         res.status(500).json({ error: "ZIP export produced an invalid file" });
         return;
@@ -137,6 +140,10 @@ router.post("/export", async (req: Request, res: Response) => {
     }
 
     if (format === "pdf") {
+      if (!settings.generatePdf) {
+        res.status(403).json({ error: "PDF export is disabled. Enable 'PDF Export' in Settings to generate PDFs." });
+        return;
+      }
       const buf = await markdownToPdfBuffer(markdown, body.title);
       if (buf.length === 0 || !hasMagic(buf, PDF_MAGIC)) {
         res.status(500).json({ error: "PDF export produced an invalid file" });
