@@ -557,11 +557,14 @@ export default function GeneratePage() {
         if (raw) {
           const cached = JSON.parse(raw) as {
             postingId: string;
+            cachedAt?: number;
             selection: Selection;
             experienceOptions: ExpOption[];
             warning?: string;
           };
-          if (cached.postingId === linkedPosting.id && cached.selection) {
+          const PREFETCH_TTL_MS = 5 * 60 * 1000; // 5 minutes
+          const age = cached.cachedAt ? Date.now() - cached.cachedAt : Infinity;
+          if (cached.postingId === linkedPosting.id && cached.selection && age < PREFETCH_TTL_MS) {
             // Consume and clear — each prefetch result is used at most once.
             sessionStorage.removeItem("rdPrefetchPass1");
             resetRunState();

@@ -621,6 +621,7 @@ export default function PostingsPage() {
               "rdPrefetchPass1",
               JSON.stringify({
                 postingId: id,
+                cachedAt: Date.now(),
                 selection: data.selection,
                 experienceOptions: data.experienceOptions ?? [],
                 warning: data.warning,
