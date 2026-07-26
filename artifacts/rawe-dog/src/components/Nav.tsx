@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { XpNavButton } from "./XpWidget";
 
 const links = [
   { href: "/", label: "Generate" },
@@ -35,6 +36,7 @@ export function Nav() {
             {l.label}
           </Link>
         ))}
+        <XpNavButton />
       </nav>
     </header>
   );

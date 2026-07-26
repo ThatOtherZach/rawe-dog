@@ -72,12 +72,20 @@ function useXpProfile() {
   return { profile, reload };
 }
 
+/** @deprecated Replaced by XpNavButton rendered inside Nav. */
 export function XpWidget() {
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Nav-inline XP button — rendered in the nav bar after Settings
+// ---------------------------------------------------------------------------
+
+export function XpNavButton() {
   const { profile } = useXpProfile();
   const { flashXp, flashKey } = useXpFlash();
   const [panelOpen, setPanelOpen] = useState(false);
 
-  // Show as soon as any XP is earned or any achievement unlocked — not just after kit generation.
   if (!profile || (profile.xp === 0 && profile.achievements.length === 0)) return null;
 
   const { name } = levelForXp(profile.xp);
@@ -85,13 +93,12 @@ export function XpWidget() {
 
   return (
     <>
-      {/* XP flash keyframe (injected once) */}
       <style>{`
         @keyframes xp-flash {
-          0%   { opacity: 0; transform: translateY(0px); }
-          15%  { opacity: 1; transform: translateY(-4px); }
-          70%  { opacity: 1; transform: translateY(-8px); }
-          100% { opacity: 0; transform: translateY(-14px); }
+          0%   { opacity: 0; transform: translateY(4px); }
+          15%  { opacity: 1; transform: translateY(0px); }
+          70%  { opacity: 1; transform: translateY(-4px); }
+          100% { opacity: 0; transform: translateY(-10px); }
         }
         .xp-flash-label {
           animation: xp-flash 1.5s ease-out forwards;
@@ -99,39 +106,38 @@ export function XpWidget() {
         }
       `}</style>
 
-      {/* "+N XP" flash label — floats above the widget */}
+      <div className="mx-1 h-4 w-px bg-[var(--border)]" />
+
       {flashXp > 0 && (
         <span
           key={flashKey}
-          className="xp-flash-label fixed bottom-[4.5rem] right-6 z-50 text-xs font-bold text-[var(--accent)] drop-shadow-[0_0_6px_var(--accent)]"
+          className="xp-flash-label pointer-events-none fixed top-14 right-4 z-50 text-xs font-bold text-[var(--accent)] drop-shadow-[0_0_6px_var(--accent)]"
         >
           +{flashXp} XP
         </span>
       )}
 
-      {/* Widget button */}
       <button
         onClick={() => setPanelOpen(true)}
         title="Your XP profile"
-        className="fixed bottom-4 right-4 z-40 flex items-center gap-2.5 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] bg-[#0e1820] px-3 py-2 shadow-lg shadow-black/30 transition hover:border-[color-mix(in_srgb,var(--accent)_60%,var(--border))]"
+        className="flex items-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--accent)_25%,var(--border))] bg-[#0e1820] px-2.5 py-1.5 transition hover:border-[color-mix(in_srgb,var(--accent)_55%,var(--border))]"
       >
-        <div className="flex flex-col items-start gap-1">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--accent)]">
+        <div className="flex flex-col items-start gap-0.5">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--accent)] leading-none">
             {name}
           </span>
-          <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--border)]">
+          <div className="h-1 w-20 overflow-hidden rounded-full bg-[var(--border)]">
             <div
               className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-[#60a5fa] transition-all duration-500"
               style={{ width: `${Math.round(pct * 100)}%` }}
             />
           </div>
         </div>
-        <span className="shrink-0 text-xs font-semibold tabular-nums text-[var(--text)]">
+        <span className="text-[11px] font-semibold tabular-nums text-[var(--muted)]">
           {profile.xp.toLocaleString()} XP
         </span>
       </button>
 
-      {/* Profile panel */}
       {panelOpen && <ProfilePanel profile={profile} onClose={() => setPanelOpen(false)} />}
     </>
   );
@@ -296,6 +302,9 @@ function ProfilePanel({ profile, onClose }: { profile: Profile; onClose: () => v
           {importOk && (
             <p className="mb-2 text-xs text-[var(--accent)]">Profile imported and merged ✓</p>
           )}
+          <p className="mb-3 text-xs text-[var(--muted)]">
+            Earn XP by generating kits and applying for jobs. Export your profile to back it up; import to restore or merge from another device.
+          </p>
           <div className="flex flex-wrap gap-2">
             <button
               className="btn btn-primary flex-1"
@@ -313,7 +322,6 @@ function ProfilePanel({ profile, onClose }: { profile: Profile; onClose: () => v
               />
             </label>
           </div>
-          <p className="mt-2 text-[10px] text-[var(--muted)]">Export your profile and  import it to update. earn XP by generating and applying for jobs and unlock achievements. XP has ZERO cash value, just like our interns.</p>
         </div>
       </div>
     </div>

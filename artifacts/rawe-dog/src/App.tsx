@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Route, Switch, Router as WouterRouter } from "wouter";
 import { Nav } from "./components/Nav";
 import { AchievementToast } from "./components/AchievementToast";
-import { XpWidget } from "./components/XpWidget";
+// XpWidget retired — XpNavButton is now rendered inside Nav
 import GeneratePage from "./pages/GeneratePage";
 import LibraryPage from "./pages/LibraryPage";
 import PostingsPage from "./pages/PostingsPage";
@@ -48,7 +48,7 @@ function App() {
           <Router />
         </main>
         {/* XP layer — fixed, outside normal flow */}
-        <XpWidget />
+        {/* XpNavButton is rendered inside Nav */}
         <AchievementToast />
       </div>
     </WouterRouter>
