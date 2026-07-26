@@ -401,8 +401,8 @@ function unlock(p: Profile, id: AchievementId): AchievementRecord | null {
 // Dispatch helpers
 // ---------------------------------------------------------------------------
 
-function dispatchXpUpdated(): void {
-  window.dispatchEvent(new CustomEvent("rawedog:xp_updated"));
+function dispatchXpUpdated(xpGained = 0): void {
+  window.dispatchEvent(new CustomEvent("rawedog:xp_updated", { detail: { xpGained } }));
 }
 
 function dispatchAchievement(a: AchievementRecord): void {
@@ -646,7 +646,7 @@ export function awardXp(type: XpEventType, opts: AwardOpts = {}): void {
     }
 
     saveProfile(p);
-    dispatchXpUpdated();
+    dispatchXpUpdated(totalGained);
     for (const a of newAchievements) {
       dispatchAchievement(a);
     }

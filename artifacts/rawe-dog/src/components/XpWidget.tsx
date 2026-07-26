@@ -4,7 +4,7 @@
  * Hidden until the first kit is generated (rawedog_kit_ever_generated in
  * localStorage).  Clicking opens the profile panel.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ACHIEVEMENT_DEFS,
   LS_KIT_EVER_KEY,
@@ -15,6 +15,40 @@ import {
   xpProgress,
 } from "../lib/xpStore";
 import type { Profile } from "../lib/xpStore";
+
+// ---------------------------------------------------------------------------
+// XP flash hook — batches rapid awards and shows "+N XP" for ~1.5 s
+// ---------------------------------------------------------------------------
+
+function useXpFlash() {
+  const [flashXp, setFlashXp] = useState(0);
+  const [flashKey, setFlashKey] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    function onXpUpdated(e: Event) {
+      const gained = (e as CustomEvent<{ xpGained?: number }>).detail?.xpGained ?? 0;
+      if (gained <= 0) return;
+
+      // Accumulate rapid awards; restart the fade-out timer each time
+      setFlashXp((prev) => prev + gained);
+      setFlashKey((k) => k + 1);
+
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        setFlashXp(0);
+      }, 1800); // clear after animation finishes
+    }
+
+    window.addEventListener("rawedog:xp_updated", onXpUpdated);
+    return () => {
+      window.removeEventListener("rawedog:xp_updated", onXpUpdated);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  return { flashXp, flashKey };
+}
 
 function useXpProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -43,6 +77,7 @@ function useXpProfile() {
 
 export function XpWidget() {
   const { profile, kitEver } = useXpProfile();
+  const { flashXp, flashKey } = useXpFlash();
   const [panelOpen, setPanelOpen] = useState(false);
 
   if (!kitEver || !profile) return null;
@@ -52,6 +87,30 @@ export function XpWidget() {
 
   return (
     <>
+      {/* XP flash keyframe (injected once) */}
+      <style>{`
+        @keyframes xp-flash {
+          0%   { opacity: 0; transform: translateY(0px); }
+          15%  { opacity: 1; transform: translateY(-4px); }
+          70%  { opacity: 1; transform: translateY(-8px); }
+          100% { opacity: 0; transform: translateY(-14px); }
+        }
+        .xp-flash-label {
+          animation: xp-flash 1.5s ease-out forwards;
+          pointer-events: none;
+        }
+      `}</style>
+
+      {/* "+N XP" flash label — floats above the widget */}
+      {flashXp > 0 && (
+        <span
+          key={flashKey}
+          className="xp-flash-label fixed bottom-[4.5rem] right-6 z-50 text-xs font-bold text-[var(--accent)] drop-shadow-[0_0_6px_var(--accent)]"
+        >
+          +{flashXp} XP
+        </span>
+      )}
+
       {/* Widget button */}
       <button
         onClick={() => setPanelOpen(true)}
