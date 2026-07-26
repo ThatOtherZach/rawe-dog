@@ -81,6 +81,11 @@ export type GenerateInput = {
    */
   skipVerification?: boolean;
   /**
+   * Human-readable reason why verification is being skipped, shown in the
+   * QA report summary. When absent the default paste-mode message is used.
+   */
+  skipVerificationReason?: string;
+  /**
    * Optional abort signal threaded from the route layer. When the client
    * disconnects (or clicks Cancel), the signal fires and every in-flight
    * xAI call is aborted immediately — no more tokens billed for a run
@@ -589,13 +594,15 @@ async function finishKitPipeline(args: {
   let pass2Retried = drafts.anyRetried;
 
   if (input.skipVerification) {
-    // Paste-sourced kit: skip verification and repair entirely. Emit a minimal
-    // QA report so the client has a non-null report and the Quality tab
-    // renders cleanly with a "skipped" notice instead of an empty state.
+    // Skip verification and repair entirely. Emit a minimal QA report so the
+    // client has a non-null report and the Quality tab renders cleanly with a
+    // "skipped" notice instead of an empty state.
+    const skipSummary =
+      input.skipVerificationReason ??
+      "Verification skipped — you supplied the description directly. Review the output before submitting.";
     report = {
       verdict: "pass",
-      summary:
-        "Verification skipped — you supplied the description directly. Review the output before submitting.",
+      summary: skipSummary,
       findings: [],
       keywordCoverage: [],
       repairedDocuments: [],

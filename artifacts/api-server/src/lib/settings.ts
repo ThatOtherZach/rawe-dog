@@ -17,6 +17,11 @@ export type AppSettings = {
    * XAI_BASE_URL env hook, then fall back to https://api.x.ai/v1.
    */
   apiEndpoint: string;
+  /**
+   * When false, the verification + repair pass is skipped for all kit
+   * generations (posting-sourced and paste-sourced alike). Default true.
+   */
+  runVerification: boolean;
 };
 
 const DEFAULT_MODEL = "grok-4.5";
@@ -30,6 +35,7 @@ export function getDefaultSettings(): AppSettings {
     theirstackApiKey: process.env["THEIRSTACK_API_KEY"]?.trim() || "",
     // No env default — apiEndpoint is intentionally user-only; env uses XAI_BASE_URL.
     apiEndpoint: "",
+    runVerification: true,
   };
 }
 
@@ -48,6 +54,7 @@ export function loadSettings(): AppSettings {
       verificationModel: (raw.verificationModel ?? defaults.verificationModel).trim(),
       theirstackApiKey: (raw.theirstackApiKey ?? defaults.theirstackApiKey).trim(),
       apiEndpoint: (raw.apiEndpoint ?? defaults.apiEndpoint).trim(),
+      runVerification: raw.runVerification !== undefined ? Boolean(raw.runVerification) : defaults.runVerification,
     };
   } catch {
     return defaults;
@@ -79,6 +86,10 @@ export function saveSettings(partial: Partial<AppSettings>): AppSettings {
       partial.apiEndpoint !== undefined
         ? partial.apiEndpoint.trim()
         : current.apiEndpoint,
+    runVerification:
+      partial.runVerification !== undefined
+        ? Boolean(partial.runVerification)
+        : current.runVerification,
   };
   mkdirSync(getDataRoot(), { recursive: true });
   writeFileSync(getSettingsPath(), JSON.stringify(next, null, 2), "utf8");
@@ -103,6 +114,7 @@ export function publicSettings() {
     theirstackKeyMasked: maskApiKey(s.theirstackApiKey),
     // Shown plainly — not a secret.
     apiEndpoint: s.apiEndpoint,
+    runVerification: s.runVerification,
   };
 }
 

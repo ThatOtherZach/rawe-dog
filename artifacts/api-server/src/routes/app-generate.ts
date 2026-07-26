@@ -4,6 +4,7 @@ import { getStoredPosting, setPostingStatus } from "../lib/jobs/store.js";
 import { renderBriefForDrafting, renderBriefCompact } from "../lib/jobs/brief.js";
 import { briefIsUsable } from "../lib/jobs/brief.js";
 import { logger } from "../lib/logger.js";
+import { loadSettings } from "../lib/settings.js";
 import type { Pass1Selection } from "../lib/parse-kit.js";
 import type { GenerateProgressEvent } from "../lib/generate.js";
 
@@ -48,6 +49,25 @@ router.post("/generate", async (req: Request, res: Response) => {
 
     const mode = body.mode || "full";
 
+    const settings = loadSettings();
+
+    // Score-gated skip decision:
+    //   - Settings toggle off → skip (user disabled verification)
+    //   - No postingId → skip (paste mode, unchanged)
+    //   - postingId, score ≥ 70 → skip (strong fit, low grounding risk)
+    //   - postingId, score missing or score < 70 → run verification
+    let skipVerification = false;
+    let skipVerificationReason: string | undefined;
+
+    if (!settings.runVerification) {
+      skipVerification = true;
+      skipVerificationReason = "Verification disabled in Settings.";
+    } else if (!body.postingId) {
+      skipVerification = true;
+      // Reason omitted here — finishKitPipeline uses the default paste-mode message
+    }
+    // If postingId is present, defer the score check until after we load the stored posting below.
+
     const input: GenerateInput = {
       jobPosting: body.jobPosting || "",
       company: body.company,
@@ -55,11 +75,8 @@ router.post("/generate", async (req: Request, res: Response) => {
       notes: body.notes,
       overrideLeads: body.overrideLeads,
       skipPass1: body.skipPass1,
-      // Paste kits (no postingId) skip verification and repair — the user
-      // supplied the description themselves and will review the output directly.
-      // Posting-sourced kits always verify: ATS keyword coverage matters when
-      // the brief was model-extracted.
-      skipVerification: !body.postingId,
+      skipVerification,
+      skipVerificationReason,
     };
 
     // ID-only posting handoff: the client sends just a posting id and the
@@ -94,6 +111,18 @@ router.post("/generate", async (req: Request, res: Response) => {
           error: "The linked posting has no description or brief to work from.",
         });
         return;
+      }
+
+      // Apply score-gated skip if verification wasn't already disabled by settings.
+      if (settings.runVerification) {
+        const score = stored.fit?.score;
+        if (typeof score === "number" && score >= 70) {
+          input.skipVerification = true;
+          input.skipVerificationReason = `Verification skipped — strong fit score (${score}/100); grounding risk is low.`;
+        } else {
+          // score < 70 or not yet scored — run verification
+          input.skipVerification = false;
+        }
       }
     }
 

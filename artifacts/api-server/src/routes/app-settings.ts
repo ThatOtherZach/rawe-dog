@@ -32,6 +32,7 @@ router.put("/settings", async (req: Request, res: Response) => {
     theirstackApiKey?: string;
     clearTheirstackKey?: boolean;
     apiEndpoint?: string;
+    runVerification?: boolean;
   };
 
   const current = loadSettings();
@@ -42,6 +43,7 @@ router.put("/settings", async (req: Request, res: Response) => {
     verificationModel?: string;
     theirstackApiKey?: string;
     apiEndpoint?: string;
+    runVerification?: boolean;
   } = {};
 
   if (body.clearApiKey) {
@@ -78,6 +80,10 @@ router.put("/settings", async (req: Request, res: Response) => {
       return;
     }
     partial.apiEndpoint = trimmed;
+  }
+
+  if (typeof body.runVerification === "boolean") {
+    partial.runVerification = body.runVerification;
   }
 
   if (partial.apiKey === undefined) {
