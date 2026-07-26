@@ -211,7 +211,7 @@ export default function SettingsPage() {
           </div>
           {/* Right — Support */}
           <div>
-            <h3 className="mb-3 text-sm font-semibold">Support RAWE Dog</h3>
+            <h3 className="mb-3 text-sm font-semibold">Support RAWE-DOG</h3>
             <div className="flex items-start gap-3">
               <img
                 src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&bgcolor=0c0e13&color=ffffff&data=0xC300A97f4ce2f9D4B02106045374c4C5eDb349af"
