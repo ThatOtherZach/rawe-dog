@@ -52,12 +52,9 @@ function useXpFlash() {
 
 function useXpProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [kitEver, setKitEver] = useState(false);
 
   function reload() {
-    const ke = localStorage.getItem(LS_KIT_EVER_KEY) === "1";
-    setKitEver(ke);
-    if (ke) setProfile(loadProfile());
+    setProfile(loadProfile());
   }
 
   useEffect(() => {
@@ -72,15 +69,16 @@ function useXpProfile() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { profile, kitEver, reload };
+  return { profile, reload };
 }
 
 export function XpWidget() {
-  const { profile, kitEver } = useXpProfile();
+  const { profile } = useXpProfile();
   const { flashXp, flashKey } = useXpFlash();
   const [panelOpen, setPanelOpen] = useState(false);
 
-  if (!kitEver || !profile) return null;
+  // Show as soon as any XP is earned or any achievement unlocked — not just after kit generation.
+  if (!profile || (profile.xp === 0 && profile.achievements.length === 0)) return null;
 
   const { name } = levelForXp(profile.xp);
   const { pct } = xpProgress(profile.xp);

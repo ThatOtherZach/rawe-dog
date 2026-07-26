@@ -12,7 +12,7 @@ Easter egg — **not documented in replit.md by design**. Mention only in memory
 - `"rawedog_kit_ever_generated"` — `"1"` when any kit has been generated; controls widget visibility
 
 ## Visibility rule
-The `XpWidget` is **hidden until `"rawedog_kit_ever_generated"` is set**. It only appears after the user generates their first kit (free lane is the entry point, not the paid lane).
+The `XpWidget` appears as soon as **any XP is earned OR any achievement is unlocked** (`profile.xp > 0 || profile.achievements.length > 0`). The old `rawedog_kit_ever_generated` gate was removed so actions like saving an API key, uploading a file, or dismissing a posting surface the widget immediately. `LS_KIT_EVER_KEY` is still written on `kit_generated` events but is no longer read by the widget.
 
 ## CustomEvents dispatched by `xpStore.ts`
 - `"rawedog:xp_updated"` — fired on any profile change; `XpWidget` listens and re-renders
