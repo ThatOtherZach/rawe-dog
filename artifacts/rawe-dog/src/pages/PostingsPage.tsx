@@ -1390,7 +1390,16 @@ export default function PostingsPage() {
                                   </div>
                                   {d.fit.brief.compensation && (
                                     <p className="mt-2 text-xs text-[var(--muted)]">
-                                      Compensation: {d.fit.brief.compensation}
+                                      Compensation:{" "}
+                                      {d.fit.brief.compensation.replace(
+                                        /\$\s*([\d]+(?:\.\d+)?)/g,
+                                        (_, n) =>
+                                          "$\u202f" +
+                                          Number(n).toLocaleString("en-US", {
+                                            minimumFractionDigits: 0,
+                                            maximumFractionDigits: 0,
+                                          })
+                                      )}
                                     </p>
                                   )}
                                 </div>

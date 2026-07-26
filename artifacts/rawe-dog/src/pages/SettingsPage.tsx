@@ -394,7 +394,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label className="label">Run verification on kit generation</label>
+            <label className="label">Verification</label>
             <label className="flex cursor-pointer items-center gap-3">
               <div className="relative">
                 <input
