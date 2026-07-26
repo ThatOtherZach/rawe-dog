@@ -395,7 +395,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <label className="label">PDF Export</label>
+              <label className="label">PDF Generation</label>
               <label className="flex cursor-pointer items-center gap-3">
                 <div className="relative">
                   <input
