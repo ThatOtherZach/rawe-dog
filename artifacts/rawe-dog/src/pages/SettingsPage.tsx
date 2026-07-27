@@ -215,7 +215,9 @@ export default function SettingsPage() {
               to identify you, and it expires automatically after the free-kit
               window. Nothing else is stored — no name, phone, or IP address ever
               touches disk. Kits generated with your own API key or a custom
-              endpoint are never counted or fingerprinted.
+              endpoint are never counted or fingerprinted. The operator may
+              switch the free tier off entirely — in that case, kit generation
+              simply requires your own key or endpoint.
             </p>
           </div>
           {/* Right — Support */}

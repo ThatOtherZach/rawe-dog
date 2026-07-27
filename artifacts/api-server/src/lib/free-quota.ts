@@ -25,6 +25,15 @@ export const FREE_KIT_LIMIT = 1;
 
 /* ------------------------------- config -------------------------------- */
 
+/**
+ * Master kill switch for the free tier. Default ON — anything other than an
+ * explicit "false" keeps free runs enabled. When off, kit generation on the
+ * operator's key is refused entirely (BYOK/custom endpoints unaffected).
+ */
+export function freeTierEnabled(): boolean {
+  return process.env["FREE_TIER_ENABLED"]?.trim().toLowerCase() !== "false";
+}
+
 export function freeKitEnforced(): boolean {
   return process.env["FREE_DAILY_KIT_ENFORCED"]?.trim().toLowerCase() === "true";
 }

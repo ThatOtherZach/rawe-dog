@@ -7,6 +7,7 @@ import { logger } from "../lib/logger.js";
 import { loadSettings } from "../lib/settings.js";
 import { loadMasterProfile } from "../lib/context-pack.js";
 import {
+  freeTierEnabled,
   freeKitEnforced,
   isOperatorKeyRun,
   requestClientIp,
@@ -92,6 +93,20 @@ router.post("/generate", async (req: Request, res: Response) => {
       // Reason omitted here — finishKitPipeline uses the default paste-mode message
     }
     // If postingId is present, defer the score check until after we load the stored posting below.
+
+    // ---- Free-tier kill switch ------------------------------------------
+    // When FREE_TIER_ENABLED=false, NO run (including pass1 selection) may
+    // use the operator's API key. Users must bring their own key or a
+    // custom endpoint. Checked before the daily quota — it supersedes it.
+    if (!freeTierEnabled() && isOperatorKeyRun(settings)) {
+      res.status(403).json({
+        ok: false,
+        error:
+          "The free tier is currently off — kit generation requires your own API key or a custom endpoint. " +
+          "Add one in Settings and everything works without limits.",
+      });
+      return;
+    }
 
     // ---- Free-kit quota gate (privacy-preserving fingerprint) ----------
     // Applies only to kit-DRAFTING runs (stream/pass2/full — pass1 selection

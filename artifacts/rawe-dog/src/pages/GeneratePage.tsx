@@ -7,6 +7,8 @@ type Health = {
   settings: { hasApiKey: boolean; model: string; generatePdf?: boolean };
   freeKit?: {
     enforced: boolean;
+    /** True when the operator switched the free tier off entirely. */
+    disabled?: boolean;
     remaining: number;
     limit: number;
     windowHours: number;
@@ -1035,7 +1037,16 @@ export default function GeneratePage() {
             >
               {busy ? "Working…" : "Generate (Auto)"}
             </button>
-            {health?.freeKit?.enforced && (
+            {health?.freeKit?.disabled ? (
+              <p className="shrink-0 rounded-lg border border-[#7a2e2e] bg-[#2a1414] px-3 py-2 text-xs leading-relaxed text-[#ff8f8f]">
+                The free tier is currently off — kit generation requires your
+                own API key or a custom endpoint.{" "}
+                <Link href="/settings" className="underline">
+                  Add one in Settings
+                </Link>{" "}
+                and everything works without limits.
+              </p>
+            ) : health?.freeKit?.enforced ? (
               <p
                 className={`shrink-0 rounded-lg border px-3 py-2 text-xs leading-relaxed ${
                   health.freeKit.remaining > 0
@@ -1050,7 +1061,7 @@ export default function GeneratePage() {
                   How the free limit works
                 </Link>
               </p>
-            )}
+            ) : null}
             <p className="shrink-0 text-xs leading-relaxed text-[var(--muted)]">
               Core guardrails always apply. Selection picks evidence by ID, four
               documents draft in parallel, then a verification pass checks
