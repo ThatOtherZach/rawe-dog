@@ -42,6 +42,7 @@ type Kit = {
     leadExperiences: string[];
     rationale: string;
     sourcesUsed?: string[];
+    longShot?: boolean;
   };
   resumeMarkdown: string;
   coverLetterMarkdown: string;
@@ -175,6 +176,8 @@ export default function GeneratePage() {
   const [company, setCompany] = useState("");
   const [targetTitle, setTargetTitle] = useState("");
   const [notes, setNotes] = useState("");
+  /** Long Shot mode: career-pivot kit — reframe real experience as transferable skills. */
+  const [longShot, setLongShot] = useState(false);
   const [, navigate] = useLocation();
   const [linkedPosting, setLinkedPosting] = useState<LinkedPosting | null>(null);
   const [linkedLoading, setLinkedLoading] = useState(false);
@@ -528,8 +531,8 @@ export default function GeneratePage() {
   /** Common request fields; a linked posting travels as an ID, never as text. */
   function requestBase(): Record<string, unknown> {
     return linkedPosting
-      ? { postingId: linkedPosting.id, company, targetTitle, notes }
-      : { jobPosting, company, targetTitle, notes };
+      ? { postingId: linkedPosting.id, company, targetTitle, notes, longShot }
+      : { jobPosting, company, targetTitle, notes, longShot };
   }
 
   // Keep ref in sync so handleEvent (memoised with [] deps) can always read current id.
@@ -964,6 +967,23 @@ export default function GeneratePage() {
                 disabled={busy}
               />
             </div>
+            <label className="flex shrink-0 cursor-pointer items-start gap-2 rounded-lg border border-[var(--border)] bg-[#0c0e13] px-3 py-2">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={longShot}
+                onChange={(e) => setLongShot(e.target.checked)}
+                disabled={busy}
+              />
+              <span className="text-xs leading-relaxed">
+                <span className="font-medium text-[var(--text)]">Long Shot</span>{" "}
+                <span className="text-[var(--muted)]">
+                  — applying outside your field? Reframes your real experience as
+                  transferable skills and openly owns the career pivot. Nothing is
+                  invented; grounding and verification stay strict.
+                </span>
+              </span>
+            </label>
             <button
               className="btn btn-primary w-full shrink-0"
               disabled={
@@ -1162,9 +1182,19 @@ export default function GeneratePage() {
         <section className="panel p-5">
           <div className="mb-3 flex flex-wrap items-start gap-3">
             <div className="mr-auto">
-              <h2 className="text-lg font-semibold">
-                {kitTitle}
-                {kitCompany ? ` · ${kitCompany}` : ""}
+              <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
+                <span>
+                  {kitTitle}
+                  {kitCompany ? ` · ${kitCompany}` : ""}
+                </span>
+                {(kit ? kit.meta.longShot : longShot) && (
+                  <span
+                    className="badge border-[#7a5c2e] bg-[#2a2214] text-[#ffd28f]"
+                    title="Career-pivot kit: real experience reframed as transferable skills"
+                  >
+                    Long Shot
+                  </span>
+                )}
               </h2>
               <p className="mt-1 max-w-3xl text-sm text-[var(--muted)]">
                 {kit?.meta.rationale || selection?.rationale || ""}

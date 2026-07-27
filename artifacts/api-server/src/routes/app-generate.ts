@@ -43,6 +43,7 @@ router.post("/generate", async (req: Request, res: Response) => {
       notes?: string;
       overrideLeads?: string[];
       skipPass1?: boolean;
+      longShot?: boolean;
       mode?: "full" | "pass1" | "pass2" | "stream";
       selection?: Partial<Pass1Selection>;
     };
@@ -77,6 +78,7 @@ router.post("/generate", async (req: Request, res: Response) => {
       skipPass1: body.skipPass1,
       skipVerification,
       skipVerificationReason,
+      longShot: body.longShot === true,
     };
 
     // ID-only posting handoff: the client sends just a posting id and the

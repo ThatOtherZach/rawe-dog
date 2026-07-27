@@ -86,6 +86,12 @@ export type GenerateInput = {
    */
   skipVerificationReason?: string;
   /**
+   * Long Shot mode: career-pivot application with no direct domain experience.
+   * Drafting reframes real evidence as transferable skills (honest pivot
+   * framing); grounding and verification strictness are unchanged.
+   */
+  longShot?: boolean;
+  /**
    * Optional abort signal threaded from the route layer. When the client
    * disconnects (or clicks Cancel), the signal fires and every in-flight
    * xAI call is aborted immediately — no more tokens billed for a run
@@ -318,7 +324,7 @@ async function draftDocument(args: {
 
   const { data, content, meta } = await chatStructured<DraftOutput>({
     stage: "drafting",
-    system: buildDraftSystemPrompt(doc, ctx.customAddon),
+    system: buildDraftSystemPrompt(doc, ctx.customAddon, input.longShot),
     user,
     schemaName: `draft_${doc.toLowerCase()}`,
     schema: DRAFT_SCHEMA,
@@ -400,6 +406,7 @@ async function runDraftStage(
       leadExperiences: resolved.leads.map((l) => l.title),
       rationale: selection.rationale,
       sourcesUsed: sourceTitles.length ? sourceTitles : resolved.leads.map((l) => l.title),
+      ...(input.longShot ? { longShot: true } : {}),
     },
     resumeMarkdown: byDoc.get("resume")!.markdown,
     coverLetterMarkdown: byDoc.get("coverLetter")!.markdown,
@@ -446,7 +453,7 @@ async function runVerificationStage(
   try {
     const { data, content } = await chatStructured<VerifierOutput>({
       stage: "verification",
-      system: buildVerificationSystemPrompt(),
+      system: buildVerificationSystemPrompt(input.longShot),
       user: buildVerificationUserMessage({
         spine: buildSpineBlock({
           selection,

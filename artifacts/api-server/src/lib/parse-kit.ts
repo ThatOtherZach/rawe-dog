@@ -38,6 +38,8 @@ export type ApplicationKit = {
     leadExperiences: string[];
     rationale: string;
     sourcesUsed?: string[];
+    /** True when the kit was generated in Long Shot (career-pivot) mode. */
+    longShot?: boolean;
   };
   resumeMarkdown: string;
   coverLetterMarkdown: string;
