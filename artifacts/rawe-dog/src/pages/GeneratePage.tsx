@@ -5,6 +5,13 @@ import { MarkdownView } from "../components/MarkdownView";
 
 type Health = {
   settings: { hasApiKey: boolean; model: string; generatePdf?: boolean };
+  freeKit?: {
+    enforced: boolean;
+    remaining: number;
+    limit: number;
+    windowHours: number;
+    resetsInHours: number;
+  } | null;
   library: {
     ready: boolean;
     masterProfile: boolean;
@@ -430,6 +437,11 @@ export default function GeneratePage() {
         setStats(ev.stats);
         setStage("done");
         snapProgress(100, "Kit ready.");
+        // Refresh health so the free-kit status reflects the consumed quota.
+        void fetch("/api/health")
+          .then((r) => r.json())
+          .then((h) => setHealth(h as Health))
+          .catch(() => {});
         break;
       }
       case "error": {
@@ -1023,6 +1035,22 @@ export default function GeneratePage() {
             >
               {busy ? "Working…" : "Generate (Auto)"}
             </button>
+            {health?.freeKit?.enforced && (
+              <p
+                className={`shrink-0 rounded-lg border px-3 py-2 text-xs leading-relaxed ${
+                  health.freeKit.remaining > 0
+                    ? "border-[var(--border)] bg-[#0c0e13] text-[var(--muted)]"
+                    : "border-[#7a5c2e] bg-[#2a2214] text-[#ffd28f]"
+                }`}
+              >
+                {health.freeKit.remaining > 0
+                  ? `Free kit available — ${health.freeKit.limit} per ${health.freeKit.windowHours}h on the house.`
+                  : `Free kit used — resets in ~${health.freeKit.resetsInHours}h. Add your own API key in Settings for unlimited kits.`}{" "}
+                <Link href="/settings" className="underline">
+                  How the free limit works
+                </Link>
+              </p>
+            )}
             <p className="shrink-0 text-xs leading-relaxed text-[var(--muted)]">
               Core guardrails always apply. Selection picks evidence by ID, four
               documents draft in parallel, then a verification pass checks

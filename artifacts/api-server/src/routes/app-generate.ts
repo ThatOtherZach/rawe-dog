@@ -5,6 +5,16 @@ import { renderBriefForDrafting, renderBriefCompact } from "../lib/jobs/brief.js
 import { briefIsUsable } from "../lib/jobs/brief.js";
 import { logger } from "../lib/logger.js";
 import { loadSettings } from "../lib/settings.js";
+import { loadMasterProfile } from "../lib/context-pack.js";
+import {
+  freeKitEnforced,
+  isOperatorKeyRun,
+  requestClientIp,
+  computeFingerprint,
+  reserveFreeKit,
+  releaseFreeKit,
+  freeKitResetMs,
+} from "../lib/free-quota.js";
 import type { Pass1Selection } from "../lib/parse-kit.js";
 import type { GenerateProgressEvent } from "../lib/generate.js";
 
@@ -34,6 +44,20 @@ const RAW_POSTING_CAP = 12000;
  * search (POST /postings/refresh), not kit generation.
  */
 router.post("/generate", async (req: Request, res: Response) => {
+  // Reservation model: atomically check-and-increment at run start (so
+  // concurrent requests can't both pass a stale check), and release the
+  // reservation if the run fails or is aborted — failed runs are free.
+  let freeKitReservation: string | null = null;
+  // Set to true ONLY when a kit was successfully delivered; every other exit
+  // (validation early-returns, throws, aborts) releases the reservation in
+  // the finally block below — failed runs are free.
+  let freeKitCommitted = false;
+  const releaseReservation = () => {
+    if (freeKitReservation) {
+      releaseFreeKit(freeKitReservation);
+      freeKitReservation = null;
+    }
+  };
   try {
     const body = req.body as {
       jobPosting?: string;
@@ -68,6 +92,39 @@ router.post("/generate", async (req: Request, res: Response) => {
       // Reason omitted here — finishKitPipeline uses the default paste-mode message
     }
     // If postingId is present, defer the score check until after we load the stored posting below.
+
+    // ---- Free-kit quota gate (privacy-preserving fingerprint) ----------
+    // Applies only to kit-DRAFTING runs (stream/pass2/full — pass1 selection
+    // alone is not a kit) on the OPERATOR's key. BYOK and custom endpoints
+    // bypass. See lib/free-quota.ts for the privacy design.
+    if (
+      mode !== "pass1" &&
+      freeKitEnforced() &&
+      isOperatorKeyRun(settings)
+    ) {
+      const master = await loadMasterProfile();
+      if (master) {
+        const fingerprint = computeFingerprint(
+          master.text,
+          requestClientIp(req)
+        );
+        if (reserveFreeKit(fingerprint)) {
+          freeKitReservation = fingerprint;
+        } else {
+          const hours = Math.max(1, Math.ceil(freeKitResetMs() / 3_600_000));
+          res.status(429).json({
+            ok: false,
+            error:
+              `Free kit already used — the free tier resets in about ${hours}h. ` +
+              `To keep generating now, add your own API key or a custom endpoint in Settings (no limits on your own key). ` +
+              `See Settings → About for how the free limit works.`,
+          });
+          return;
+        }
+      }
+      // No master profile → generation fails downstream with a clear error;
+      // nothing to fingerprint or protect here.
+    }
 
     const input: GenerateInput = {
       jobPosting: body.jobPosting || "",
@@ -199,6 +256,7 @@ router.post("/generate", async (req: Request, res: Response) => {
         if (body.postingId) {
           setPostingStatus(String(body.postingId), "kit_generated");
         }
+        freeKitCommitted = true;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         // Suppress abort errors — the client already left; no point writing
@@ -233,6 +291,7 @@ router.post("/generate", async (req: Request, res: Response) => {
       if (body.postingId) {
         setPostingStatus(String(body.postingId), "kit_generated");
       }
+      freeKitCommitted = true;
       res.json({ ok: true, ...result });
       return;
     }
@@ -242,10 +301,15 @@ router.post("/generate", async (req: Request, res: Response) => {
     if (body.postingId) {
       setPostingStatus(String(body.postingId), "kit_generated");
     }
+    freeKitCommitted = true;
     res.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(errorStatus(message)).json({ ok: false, error: message });
+  } finally {
+    // Covers throws AND validation early-returns (404/400 etc.) — any exit
+    // that didn't deliver a kit refunds the reservation.
+    if (!freeKitCommitted) releaseReservation();
   }
 });
 
