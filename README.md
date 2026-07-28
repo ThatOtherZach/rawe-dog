@@ -1,6 +1,7 @@
-# rawe-dog
+# RAWE-DOG
 
 > Open-source framework for generating ATS-optimized, grounded resumes using AI models.
+
 [Raw Dog a Resume Today → RAWEDOG.COM](https://rawedog.com)
 
 ![GitHub stars](https://img.shields.io/github/stars/ThatOtherZach/rawe-dog?style=for-the-badge&logo=github) ![GitHub forks](https://img.shields.io/github/forks/ThatOtherZach/rawe-dog?style=for-the-badge&logo=github) ![GitHub issues](https://img.shields.io/github/issues/ThatOtherZach/rawe-dog?style=for-the-badge&logo=github) ![Last commit](https://img.shields.io/github/last-commit/ThatOtherZach/rawe-dog?style=for-the-badge&logo=github) ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
