@@ -58,7 +58,8 @@ function App() {
               href="https://saymservices.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-orange-400 transition hover:text-orange-300"
+              style={{ color: "#fb923c" }}
+              className="transition hover:opacity-80"
             >
               Designed by Saym Services inc.
             </a>
