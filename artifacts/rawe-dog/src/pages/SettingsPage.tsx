@@ -24,7 +24,10 @@ const MODELS = [
   "grok-build-0.1",
 ];
 
+type Health = { freeKit: { enforced: boolean; disabled?: boolean } | null };
+
 export default function SettingsPage() {
+  const [health, setHealth] = useState<Health | null>(null);
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("grok-4.5");
@@ -68,6 +71,10 @@ export default function SettingsPage() {
 
   useEffect(() => {
     void refresh();
+    fetch("/api/health")
+      .then((r) => r.json() as Promise<Health>)
+      .then(setHealth)
+      .catch(() => setHealth({ freeKit: null }));
   }, [refresh]);
 
   async function save(opts?: { key?: string }) {
@@ -208,17 +215,21 @@ export default function SettingsPage() {
           <div>
             <h2 className="mb-2 text-base font-semibold">About</h2>
             <p className="text-sm text-[var(--muted)]">RAWE-DOG generates tailored application kits (resume, cover letter, alignment notes, STAR prep) from a job posting and your personal knowledge library, grounded entirely in your own experience files. Every run drafts documents in parallel, then verifies grounding and consistency before delivery. No fabrication and uses guardrails to ensure accuracy.</p>
-            <h3 className="mb-1 mt-4 text-sm font-semibold">Free kits &amp; your privacy</h3>
-            <p className="text-xs text-[var(--muted)]">
-              To offer a free daily kit without accounts, we keep a one-way
-              cryptographic fingerprint of request details. It cannot be reversed
-              to identify you, and it expires automatically after the free-kit
-              window. Nothing else is stored — no name, phone, or IP address ever
-              touches disk. Kits generated with your own API key or a custom
-              endpoint are never counted or fingerprinted. The operator may
-              switch the free tier off entirely — in that case, kit generation
-              simply requires your own key or endpoint.
-            </p>
+            {health?.freeKit != null && (
+              <>
+                <h3 className="mb-1 mt-4 text-sm font-semibold">Free kits &amp; your privacy</h3>
+                <p className="text-xs text-[var(--muted)]">
+                  To offer a free daily kit without accounts, we keep a one-way
+                  cryptographic fingerprint of request details. It cannot be reversed
+                  to identify you, and it expires automatically after the free-kit
+                  window. Nothing else is stored — no name, phone, or IP address ever
+                  touches disk. Kits generated with your own API key or a custom
+                  endpoint are never counted or fingerprinted. The operator may
+                  switch the free tier off entirely — in that case, kit generation
+                  simply requires your own key or endpoint.
+                </p>
+              </>
+            )}
           </div>
           {/* Right — Support */}
           <div>
