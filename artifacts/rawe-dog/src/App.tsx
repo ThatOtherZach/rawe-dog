@@ -52,8 +52,7 @@ function App() {
         <AchievementToast />
         <footer className="mx-auto w-full max-w-6xl px-3 pb-6 pt-2 sm:px-4">
           <div className="border-t border-[var(--border)] pt-4 text-center text-xs text-[var(--muted)]">
-            Resume And Work Experience - Document Output Generator
-            <span className="mx-2 opacity-40">·</span>
+            <div>Resume And Work Experience - Document Output Generator</div>
             <a
               href="https://saymservices.com"
               target="_blank"

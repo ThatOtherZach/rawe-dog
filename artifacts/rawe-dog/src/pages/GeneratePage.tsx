@@ -982,14 +982,28 @@ export default function GeneratePage() {
                 disabled={busy}
               />
             </div>
-            <label className="flex shrink-0 cursor-pointer items-start gap-2 rounded-lg border border-[var(--border)] bg-[#0c0e13] px-3 py-2">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={longShot}
-                onChange={(e) => setLongShot(e.target.checked)}
-                disabled={busy}
-              />
+            <div className="flex shrink-0 items-start gap-3 rounded-lg border border-[var(--border)] bg-[#0c0e13] px-3 py-2">
+              <label className="flex cursor-pointer items-center gap-2 pt-0.5">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={longShot}
+                    onChange={(e) => setLongShot(e.target.checked)}
+                    disabled={busy}
+                  />
+                  <div
+                    className={`h-5 w-9 rounded-full transition-colors ${
+                      longShot ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+                    }`}
+                  />
+                  <div
+                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      longShot ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </div>
+              </label>
               <span className="text-xs leading-relaxed">
                 <span className="font-medium text-[var(--text)]">Long Shot</span>{" "}
                 <span className="text-[var(--muted)]">
@@ -998,7 +1012,7 @@ export default function GeneratePage() {
                   invented; grounding and verification stay strict.
                 </span>
               </span>
-            </label>
+            </div>
             <button
               className="btn btn-primary w-full shrink-0"
               disabled={
