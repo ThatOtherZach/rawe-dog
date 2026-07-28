@@ -44,7 +44,7 @@ function App() {
     <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <div className="min-h-screen">
         <Nav />
-        <main className="mx-auto w-full max-w-6xl px-4 pb-16">
+        <main className="mx-auto w-full max-w-6xl px-3 pb-16 sm:px-4">
           <Router />
         </main>
         {/* XP layer — fixed, outside normal flow */}
