@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { loadSettings } from "./settings.js";
+import { resolveAiKey, resolveAiEndpoint } from "./ai-context.js";
 import { tryParseJsonLoose } from "./parse-kit.js";
 import type { JsonSchemaObject } from "./schemas.js";
 
@@ -15,21 +16,23 @@ const CALL_TIMEOUT_MS =
     : 300_000;
 
 /**
- * Resolve the LLM base URL:
- *   1. User-configured endpoint in Settings (highest priority — BYOM).
+ * Resolve the LLM base URL (request-scoped):
+ *   1. Session X-AI-Endpoint header (highest priority — BYOM).
  *   2. XAI_BASE_URL env hook (dev/test mock harness, kept for e2e tests).
  *   3. Default xAI production endpoint.
  */
 function getResolvedBaseURL(): string {
-  const { apiEndpoint } = loadSettings();
-  return apiEndpoint || process.env["XAI_BASE_URL"]?.trim() || "https://api.x.ai/v1";
+  return resolveAiEndpoint();
 }
 
 export function getXaiClient(): OpenAI {
-  const { apiKey } = loadSettings();
+  // Request-scoped: the session's own key (X-AI-Key header), falling back
+  // to the operator's env XAI_API_KEY. Never read from disk.
+  const apiKey = resolveAiKey();
   if (!apiKey) {
     throw new Error(
-      "No xAI API key configured. Add one on the Settings page or set XAI_API_KEY."
+      "No AI API key available. Add your own key on the Settings page (stored only in your browser). " +
+        "Note: a custom endpoint always requires your own key."
     );
   }
   const baseURL = getResolvedBaseURL();

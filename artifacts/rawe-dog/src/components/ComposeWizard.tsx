@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { MarkdownView } from "./MarkdownView";
+import { aiHeaders } from "../lib/aiKeyStore";
 
 export type ComposeSlot = "master-profile" | "system-instructions" | "experience";
 
@@ -163,7 +164,7 @@ export function ComposeWizard({
       };
       const res = await fetch("/api/library/compose", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...aiHeaders() },
         body: JSON.stringify(payload),
       });
       const json = (await res.json()) as { markdown?: string; error?: string };
@@ -187,6 +188,7 @@ export function ComposeWizard({
       if (tweakNote && tweakNote.trim()) form.set("tweakNote", tweakNote.trim());
       const res = await fetch("/api/library/import-linkedin", {
         method: "POST",
+        headers: aiHeaders(),
         body: form,
       });
       const json = (await res.json()) as { markdown?: string; error?: string };

@@ -2,7 +2,6 @@ import { Router, type Request, type Response } from "express";
 import {
   publicSettings,
   saveSettings,
-  loadSettings,
   getDefaultSettings,
 } from "../lib/settings.js";
 import { testConnection } from "../lib/xai.js";
@@ -13,44 +12,26 @@ router.get("/settings", (_req: Request, res: Response) => {
   res.json(publicSettings());
 });
 
-function isValidHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 router.put("/settings", async (req: Request, res: Response) => {
   const body = req.body as {
-    apiKey?: string;
     model?: string;
     selectionModel?: string;
     verificationModel?: string;
-    clearApiKey?: boolean;
-    // theirstackApiKey / clearTheirstackKey are silently ignored — TheirStack is operator-only.
-    apiEndpoint?: string;
     runVerification?: boolean;
     generatePdf?: boolean;
+    // apiKey / apiEndpoint / clearApiKey are silently ignored — the AI key is
+    // per user/session (browser-held, sent as X-AI-Key/X-AI-Endpoint headers)
+    // and is never persisted server-side.
+    // theirstackApiKey / clearTheirstackKey are silently ignored — TheirStack is operator-only.
   };
 
-  const current = loadSettings();
   const partial: {
-    apiKey?: string;
     model?: string;
     selectionModel?: string;
     verificationModel?: string;
-    apiEndpoint?: string;
     runVerification?: boolean;
     generatePdf?: boolean;
   } = {};
-
-  if (body.clearApiKey) {
-    partial.apiKey = "";
-  } else if (typeof body.apiKey === "string" && body.apiKey.trim()) {
-    partial.apiKey = body.apiKey.trim();
-  }
 
   if (typeof body.model === "string") {
     partial.model = body.model.trim();
@@ -63,26 +44,12 @@ router.put("/settings", async (req: Request, res: Response) => {
     partial.verificationModel = body.verificationModel.trim();
   }
 
-  // apiEndpoint: empty string = clear (use default). Non-empty must be a valid http(s) URL.
-  if (typeof body.apiEndpoint === "string") {
-    const trimmed = body.apiEndpoint.trim();
-    if (trimmed && !isValidHttpUrl(trimmed)) {
-      res.status(400).json({ error: "API endpoint must be a valid http or https URL." });
-      return;
-    }
-    partial.apiEndpoint = trimmed;
-  }
-
   if (typeof body.runVerification === "boolean") {
     partial.runVerification = body.runVerification;
   }
 
   if (typeof body.generatePdf === "boolean") {
     partial.generatePdf = body.generatePdf;
-  }
-
-  if (partial.apiKey === undefined) {
-    partial.apiKey = current.apiKey;
   }
 
   saveSettings(partial);
@@ -93,6 +60,8 @@ router.post("/settings", async (req: Request, res: Response) => {
   const body = (req.body || {}) as { action?: string };
 
   if (body.action === "test") {
+    // Uses the request-scoped AI credentials (X-AI-Key / X-AI-Endpoint
+    // headers) with operator-env fallback — same resolution as generation.
     const result = await testConnection();
     res.status(result.ok ? 200 : 400).json(result);
     return;

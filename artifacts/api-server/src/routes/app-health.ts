@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { libraryReadiness, assertDataWritable } from "../lib/library.js";
-import { publicSettings, loadSettings } from "../lib/settings.js";
+import { publicSettings } from "../lib/settings.js";
 import { loadMasterProfile } from "../lib/context-pack.js";
 import {
   freeTierEnabled,
@@ -29,7 +29,7 @@ router.get("/health", async (req, res) => {
     windowHours: number;
     resetsInHours: number;
   } | null = null;
-  const operatorRun = isOperatorKeyRun(loadSettings());
+  const operatorRun = isOperatorKeyRun();
   if (!freeTierEnabled() && operatorRun) {
     // Kill switch on: the caller cannot generate at all until they BYOK.
     freeKit = {

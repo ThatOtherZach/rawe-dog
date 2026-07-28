@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { scrubLegacyAiCredentials } from "./lib/settings";
 
 const rawPort = process.env["PORT"];
 
@@ -13,6 +14,12 @@ const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+// One-time migration: remove any legacy user-pasted AI key/endpoint from
+// settings.json — AI credentials are per-session now and never touch disk.
+if (scrubLegacyAiCredentials()) {
+  logger.info("Removed legacy AI credentials from settings.json (per-session keys now)");
 }
 
 app.listen(port, (err) => {

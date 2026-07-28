@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { awardXp, wipeXpData } from "../lib/xpStore";
+import {
+  aiHeaders,
+  getAiKey,
+  getAiEndpoint,
+  setAiKey,
+  setAiEndpoint,
+  maskAiKey,
+} from "../lib/aiKeyStore";
 
 type PublicSettings = {
+  /** Request-scoped: true when this session's key OR the operator fallback is usable. */
   hasApiKey: boolean;
-  apiKeyMasked: string;
+  /** True when the server has an operator fallback key (free tier possible). */
+  hasOperatorKey: boolean;
   model: string;
   selectionModel: string;
   verificationModel: string;
   hasTheirstackKey: boolean;
-  /** Stored endpoint, or "" if using the default. */
-  apiEndpoint: string;
   /** When false, the verification + repair pass is skipped for all kits. */
   runVerification: boolean;
   /** When true, a PDF is generated alongside the kit and included in the ZIP export. */
@@ -30,10 +38,12 @@ export default function SettingsPage() {
   const [health, setHealth] = useState<Health | null>(null);
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [apiKey, setApiKey] = useState("");
+  // Session credentials — held in THIS browser only, never sent to be stored.
+  const [storedKey, setStoredKey] = useState(() => getAiKey());
   const [model, setModel] = useState("grok-4.5");
   const [selectionModel, setSelectionModel] = useState("");
   const [verificationModel, setVerificationModel] = useState("");
-  const [apiEndpoint, setApiEndpoint] = useState("");
+  const [apiEndpoint, setApiEndpointState] = useState(() => getAiEndpoint());
   const [runVerification, setRunVerification] = useState(true);
   const [generatePdf, setGeneratePdf] = useState(false);
   const [showXaiInput, setShowXaiInput] = useState(false);
@@ -58,57 +68,51 @@ export default function SettingsPage() {
     setModel(MODELS.includes(data.model) ? data.model : "grok-4.5");
     setSelectionModel(MODELS.includes(data.selectionModel) ? data.selectionModel : "");
     setVerificationModel(MODELS.includes(data.verificationModel) ? data.verificationModel : "");
-    setApiEndpoint(data.apiEndpoint ?? "");
     setRunVerification(data.runVerification !== false);
     setGeneratePdf(Boolean(data.generatePdf));
   }, []);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/settings");
+    const res = await fetch("/api/settings", { headers: aiHeaders() });
     const data = (await res.json()) as PublicSettings;
     syncFromSettings(data);
   }, [syncFromSettings]);
 
   useEffect(() => {
     void refresh();
-    fetch("/api/health")
+    fetch("/api/health", { headers: aiHeaders() })
       .then((r) => r.json() as Promise<Health>)
       .then(setHealth)
       .catch(() => setHealth({ freeKit: null }));
   }, [refresh]);
 
-  async function save(opts?: { key?: string }) {
-    const body: {
-      model: string;
-      selectionModel: string;
-      verificationModel: string;
-      apiKey?: string;
-      apiEndpoint: string;
-      runVerification: boolean;
-      generatePdf: boolean;
-    } = {
-      model,
-      selectionModel,
-      verificationModel,
-      // Always send endpoint (empty string = clear/use default).
-      apiEndpoint: apiEndpoint.trim(),
-      runVerification,
-      generatePdf,
-    };
-    const keyToSend = opts?.key ?? apiKey;
-    if (keyToSend.trim()) body.apiKey = keyToSend.trim();
+  async function save() {
+    // Session credentials stay in the browser — never in the PUT body.
+    const newKey = apiKey.trim();
+    if (newKey) {
+      setAiKey(newKey);
+      setStoredKey(newKey);
+    }
+    setAiEndpoint(apiEndpoint.trim());
+    setApiEndpointState(apiEndpoint.trim());
 
     const res = await fetch("/api/settings", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json", ...aiHeaders() },
+      body: JSON.stringify({
+        model,
+        selectionModel,
+        verificationModel,
+        runVerification,
+        generatePdf,
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error((data as { error?: string }).error || "Save failed");
     const saved = data as PublicSettings;
     syncFromSettings(saved);
     // XP: first API key saved
-    if (keyToSend.trim()) {
+    if (newKey) {
       awardXp("api_key_saved");
       setApiKey("");
       setShowXaiInput(false);
@@ -138,7 +142,7 @@ export default function SettingsPage() {
       await save();
       const res = await fetch("/api/settings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...aiHeaders() },
         body: JSON.stringify({ action: "test" }),
       });
       const data = (await res.json()) as { ok: boolean; model?: string; error?: string };
@@ -151,31 +155,14 @@ export default function SettingsPage() {
     }
   }
 
-  async function clearKey() {
-    setBusy(true);
+  function clearKey() {
+    // Purely local — the key only ever lived in this browser.
+    setAiKey("");
+    setStoredKey("");
+    setApiKey("");
     setError(null);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clearApiKey: true,
-          model,
-          selectionModel,
-          verificationModel,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error((data as { error?: string }).error || "Failed");
-      setSettings(data as PublicSettings);
-      setApiKey("");
-      setMessage("API key cleared.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
+    setMessage("AI API key removed from this browser.");
+    void refresh();
   }
 
   async function wipeAllData() {
@@ -289,20 +276,27 @@ export default function SettingsPage() {
       <section className="panel p-5">
         <div className="mb-4 flex items-center gap-2">
           <h2 className="mr-auto text-base font-semibold">AI &amp; LLM Settings</h2>
-          <span className={`badge ${settings?.hasApiKey ? "badge-ok" : "badge-bad"}`}>
-            {settings?.hasApiKey ? "AI LLM Active" : "AI LLM missing"}
+          <span className={`badge ${storedKey || settings?.hasApiKey ? "badge-ok" : "badge-bad"}`}>
+            {storedKey || settings?.hasApiKey ? "AI LLM Active" : "AI LLM missing"}
           </span>
         </div>
 
         <div className="space-y-5">
           <div>
-            <label className="label">xAI API Key</label>
-            {settings?.hasApiKey && !showXaiInput ? (
+            <label className="label">AI API Key</label>
+            {storedKey && !showXaiInput ? (
               <div className="flex items-center gap-3">
-                <code className="text-sm text-[var(--accent)]">{settings.apiKeyMasked}</code>
+                <code className="text-sm text-[var(--accent)]">{maskAiKey(storedKey)}</code>
+                <button
+                  className="btn text-xs"
+                  onClick={() => setShowXaiInput(true)}
+                  disabled={busy}
+                >
+                  Replace
+                </button>
                 <button
                   className="btn btn-danger text-xs"
-                  onClick={() => void clearKey()}
+                  onClick={() => clearKey()}
                   disabled={busy}
                 >
                   Clear
@@ -313,14 +307,14 @@ export default function SettingsPage() {
                 <input
                   className="input"
                   type="password"
-                  placeholder="xai-…"
+                  placeholder="Your API key…"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   disabled={busy}
-                  autoFocus={settings?.hasApiKey}
+                  autoFocus={Boolean(storedKey)}
                 />
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Get your key at{" "}
+                  Any key for an OpenAI-compatible provider works (e.g.{" "}
                   <a
                     href="https://console.x.ai"
                     target="_blank"
@@ -329,7 +323,9 @@ export default function SettingsPage() {
                   >
                     console.x.ai
                   </a>
-                  . Keys are stored locally in your server's data directory.
+                  ). Your key is stored only in this browser and sent with your
+                  own requests — it is never saved on the server or shared with
+                  other users.
                 </p>
               </>
             )}
@@ -342,14 +338,14 @@ export default function SettingsPage() {
               type="text"
               placeholder="https://api.x.ai/v1 (default)"
               value={apiEndpoint}
-              onChange={(e) => setApiEndpoint(e.target.value)}
+              onChange={(e) => setApiEndpointState(e.target.value)}
               disabled={busy}
               spellCheck={false}
               autoComplete="off"
             />
             <p className="mt-1 text-xs text-[var(--muted)]">
               Any OpenAI-compatible endpoint works — OpenRouter, Together, a local Ollama gateway, etc.
-              Leave blank to use the xAI default. The endpoint is stored plainly (not masked).
+              Leave blank to use the default. Like the key, it is stored only in this browser.
             </p>
           </div>
 

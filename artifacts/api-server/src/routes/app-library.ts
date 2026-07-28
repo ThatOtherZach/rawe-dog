@@ -20,7 +20,7 @@ import {
 } from "../lib/compose.js";
 import { extractPdfText } from "../lib/pdf-text.js";
 import { chatStructured } from "../lib/xai.js";
-import { loadSettings } from "../lib/settings.js";
+import { aiKeyAvailable } from "../lib/ai-context.js";
 
 const router = Router();
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // LinkedIn exports are well under 15 MB
@@ -62,9 +62,9 @@ router.post("/library/compose", async (req: Request, res: Response) => {
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
     return;
   }
-  if (!loadSettings().apiKey) {
+  if (!aiKeyAvailable()) {
     res.status(400).json({
-      error: "No xAI API key configured. Add one on the Settings page first.",
+      error: "No AI API key available. Add your own key on the Settings page first.",
     });
     return;
   }
@@ -111,9 +111,9 @@ router.post(
       res.status(400).json({ error: "Upload the PDF exported from LinkedIn (Save to PDF)." });
       return;
     }
-    if (!loadSettings().apiKey) {
+    if (!aiKeyAvailable()) {
       res.status(400).json({
-        error: "No xAI API key configured. Add one on the Settings page first.",
+        error: "No AI API key available. Add your own key on the Settings page first.",
       });
       return;
     }

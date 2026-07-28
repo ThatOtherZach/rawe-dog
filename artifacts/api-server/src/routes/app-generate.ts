@@ -98,7 +98,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     // When FREE_TIER_ENABLED=false, NO run (including pass1 selection) may
     // use the operator's API key. Users must bring their own key or a
     // custom endpoint. Checked before the daily quota — it supersedes it.
-    if (!freeTierEnabled() && isOperatorKeyRun(settings)) {
+    if (!freeTierEnabled() && isOperatorKeyRun()) {
       res.status(403).json({
         ok: false,
         error:
@@ -115,7 +115,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     if (
       mode !== "pass1" &&
       freeKitEnforced() &&
-      isOperatorKeyRun(settings)
+      isOperatorKeyRun()
     ) {
       const master = await loadMasterProfile();
       if (master) {

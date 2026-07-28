@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ComposeWizard, type ComposeSlot } from "../components/ComposeWizard";
 import { awardXp } from "../lib/xpStore";
+import { aiHeaders } from "../lib/aiKeyStore";
 
 type SlotInfo = {
   slot: string;
@@ -93,7 +94,7 @@ export default function LibraryPage() {
   const refresh = useCallback(async () => {
     const [libRes, settingsRes] = await Promise.all([
       fetch("/api/library"),
-      fetch("/api/settings"),
+      fetch("/api/settings", { headers: aiHeaders() }),
     ]);
     const libData = (await libRes.json()) as LibraryResponse;
     setData(libData);

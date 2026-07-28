@@ -20,6 +20,7 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { getDataRoot } from "./paths.js";
 import { logger } from "./logger.js";
+import { hasSessionAi, operatorKey } from "./ai-context.js";
 
 export const FREE_KIT_LIMIT = 1;
 
@@ -151,15 +152,14 @@ export function requestClientIp(req: {
 }
 
 /**
- * True when generation would run on the OPERATOR's API key (free tier).
- * BYOK (user saved their own key) or a custom endpoint (their own compute)
- * bypasses the free-kit quota entirely.
+ * True when the CURRENT REQUEST would run on the operator's API key (free
+ * tier): no session key/endpoint headers were supplied, and the operator
+ * fallback exists. BYOK (X-AI-Key) or a custom endpoint (X-AI-Endpoint —
+ * their own compute) bypasses the free-tier gates entirely.
  */
-export function isOperatorKeyRun(settings: { apiKey: string; apiEndpoint: string }): boolean {
-  if (settings.apiEndpoint.trim()) return false; // custom endpoint → their compute
-  const envKey = process.env["XAI_API_KEY"]?.trim() || "";
-  if (!envKey) return false; // no operator key configured → nothing to protect
-  return settings.apiKey === envKey;
+export function isOperatorKeyRun(): boolean {
+  if (hasSessionAi()) return false; // session brought its own key/compute
+  return Boolean(operatorKey()); // no operator key configured → nothing to protect
 }
 
 /* ------------------------------- store --------------------------------- */

@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { SearchCreditsPanel } from "../components/SearchCreditsPanel";
 import { searchCreditHeader } from "../lib/credits";
 import { awardXp } from "../lib/xpStore";
+import { aiHeaders } from "../lib/aiKeyStore";
 
 const SENIORITY_OPTIONS = [
   { value: "junior", label: "Junior" },
@@ -447,7 +448,7 @@ export default function PostingsPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/postings");
+      const res = await fetch("/api/postings", { headers: aiHeaders() });
       if (!res.ok) throw new Error(`Failed to load postings (${res.status})`);
       applyState((await res.json()) as PostingsState);
     } catch (err) {
@@ -489,7 +490,10 @@ export default function PostingsPage() {
     setDeriving(true);
     clearNotices();
     try {
-      const res = await fetch("/api/postings/derive-filters", { method: "POST" });
+      const res = await fetch("/api/postings/derive-filters", {
+        method: "POST",
+        headers: aiHeaders(),
+      });
       const data = await res.json();
       if (!res.ok || !data.ok) {
         throw new Error(
@@ -550,7 +554,7 @@ export default function PostingsPage() {
     try {
       const res = await fetch("/api/postings/refresh", {
         method: "POST",
-        headers: { ...searchCreditHeader() },
+        headers: { ...searchCreditHeader(), ...aiHeaders() },
       });
       const data = await res.json();
       if (res.status === 402) {
@@ -618,7 +622,7 @@ export default function PostingsPage() {
     prefetchAbortRef.current = ac;
     fetch("/api/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...aiHeaders() },
       body: JSON.stringify({ mode: "pass1", postingId: id }),
       signal: ac.signal,
     })
@@ -733,7 +737,7 @@ export default function PostingsPage() {
       // Fire and forget — do not await; navigate immediately after.
       fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...aiHeaders() },
         body: JSON.stringify({ mode: "pass1", postingId: id }),
       })
         .then((res) => res.json())

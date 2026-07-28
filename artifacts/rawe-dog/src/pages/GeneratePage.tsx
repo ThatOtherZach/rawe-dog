@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { awardXp } from "../lib/xpStore";
+import { aiHeaders } from "../lib/aiKeyStore";
 import { MarkdownView } from "../components/MarkdownView";
 
 type Health = {
@@ -272,7 +273,7 @@ export default function GeneratePage() {
   useEffect(() => () => clearProgressTimer(), []);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/health");
+    const res = await fetch("/api/health", { headers: aiHeaders() });
     setHealth(await res.json());
   }, []);
 
@@ -440,7 +441,7 @@ export default function GeneratePage() {
         setStage("done");
         snapProgress(100, "Kit ready.");
         // Refresh health so the free-kit status reflects the consumed quota.
-        void fetch("/api/health")
+        void fetch("/api/health", { headers: aiHeaders() })
           .then((r) => r.json())
           .then((h) => setHealth(h as Health))
           .catch(() => {});
@@ -471,7 +472,7 @@ export default function GeneratePage() {
 
     const res = await fetch("/api/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...aiHeaders() },
       body: JSON.stringify(body),
       signal: ac.signal,
     });
@@ -606,7 +607,7 @@ export default function GeneratePage() {
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...aiHeaders() },
         body: JSON.stringify({
           mode: "pass1",
           ...requestBase(),

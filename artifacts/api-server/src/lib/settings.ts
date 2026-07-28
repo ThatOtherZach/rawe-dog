@@ -1,20 +1,21 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import path from "path";
 import { getSettingsPath, getDataRoot } from "./paths.js";
+import { aiKeyAvailable, operatorKey } from "./ai-context.js";
 
+/**
+ * Operator-owned app settings (models, toggles). The AI API key and custom
+ * endpoint are intentionally NOT here — they are per user/session, held in
+ * the visitor's browser and sent as request headers (see lib/ai-context.ts).
+ * A user-supplied key is never written to disk.
+ */
 export type AppSettings = {
-  apiKey: string;
   /** Premium model used for document drafting (and any stage without an override). */
   model: string;
   /** Optional fast/cheap model for Pass 1 experience selection. Empty = use `model`. */
   selectionModel: string;
   /** Optional fast/cheap model for verification + JSON repair. Empty = use `model`. */
   verificationModel: string;
-  /**
-   * Optional OpenAI-compatible base URL for LLM calls. Empty = use the
-   * XAI_BASE_URL env hook, then fall back to https://api.x.ai/v1.
-   */
-  apiEndpoint: string;
   /**
    * When false, the verification + repair pass is skipped for all kit
    * generations (posting-sourced and paste-sourced alike). Default true.
@@ -32,12 +33,9 @@ const DEFAULT_MODEL = "grok-4.5";
 
 export function getDefaultSettings(): AppSettings {
   return {
-    apiKey: process.env["XAI_API_KEY"]?.trim() || "",
     model: process.env["XAI_MODEL"]?.trim() || DEFAULT_MODEL,
     selectionModel: process.env["XAI_SELECTION_MODEL"]?.trim() || "",
     verificationModel: process.env["XAI_VERIFICATION_MODEL"]?.trim() || "",
-    // No env default — apiEndpoint is intentionally user-only; env uses XAI_BASE_URL.
-    apiEndpoint: "",
     runVerification: true,
     generatePdf: false,
   };
@@ -50,14 +48,15 @@ export function loadSettings(): AppSettings {
     return defaults;
   }
   try {
-    const raw = JSON.parse(readFileSync(filePath, "utf8")) as Partial<AppSettings & { theirstackApiKey?: unknown }>;
+    const raw = JSON.parse(readFileSync(filePath, "utf8")) as Partial<
+      AppSettings & { apiKey?: unknown; apiEndpoint?: unknown; theirstackApiKey?: unknown }
+    >;
     return {
-      apiKey: (raw.apiKey ?? defaults.apiKey).trim(),
       model: (raw.model ?? defaults.model).trim() || DEFAULT_MODEL,
       selectionModel: (raw.selectionModel ?? defaults.selectionModel).trim(),
       verificationModel: (raw.verificationModel ?? defaults.verificationModel).trim(),
-      // theirstackApiKey is operator-only (env var); stored values are silently discarded.
-      apiEndpoint: (raw.apiEndpoint ?? defaults.apiEndpoint).trim(),
+      // apiKey / apiEndpoint / theirstackApiKey in the file are legacy and
+      // silently ignored — see scrubLegacyAiCredentials().
       runVerification: raw.runVerification !== undefined ? Boolean(raw.runVerification) : defaults.runVerification,
       generatePdf: raw.generatePdf !== undefined ? Boolean(raw.generatePdf) : defaults.generatePdf,
     };
@@ -69,8 +68,6 @@ export function loadSettings(): AppSettings {
 export function saveSettings(partial: Partial<AppSettings>): AppSettings {
   const current = loadSettings();
   const next: AppSettings = {
-    apiKey:
-      partial.apiKey !== undefined ? partial.apiKey.trim() : current.apiKey,
     model:
       partial.model !== undefined
         ? partial.model.trim() || DEFAULT_MODEL
@@ -83,11 +80,6 @@ export function saveSettings(partial: Partial<AppSettings>): AppSettings {
       partial.verificationModel !== undefined
         ? partial.verificationModel.trim()
         : current.verificationModel,
-    // theirstackApiKey is operator-only; any incoming value is silently dropped.
-    apiEndpoint:
-      partial.apiEndpoint !== undefined
-        ? partial.apiEndpoint.trim()
-        : current.apiEndpoint,
     runVerification:
       partial.runVerification !== undefined
         ? Boolean(partial.runVerification)
@@ -102,24 +94,39 @@ export function saveSettings(partial: Partial<AppSettings>): AppSettings {
   return next;
 }
 
-export function maskApiKey(key: string): string {
-  if (!key) return "";
-  if (key.length <= 12) return "••••••••";
-  return `${key.slice(0, 7)}…${key.slice(-4)}`;
+/**
+ * One-time migration: earlier versions persisted a user-pasted API key and
+ * endpoint into settings.json — shared by every visitor. Rewrite the file
+ * without those fields so no user key remains on disk. Called at startup.
+ */
+export function scrubLegacyAiCredentials(): boolean {
+  const filePath = getSettingsPath();
+  if (!existsSync(filePath)) return false;
+  try {
+    const raw = JSON.parse(readFileSync(filePath, "utf8")) as Record<string, unknown>;
+    if (!("apiKey" in raw) && !("apiEndpoint" in raw) && !("theirstackApiKey" in raw)) {
+      return false;
+    }
+    saveSettings({}); // rewrites the file with only the AppSettings shape
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function publicSettings() {
   const s = loadSettings();
   return {
-    hasApiKey: Boolean(s.apiKey),
-    apiKeyMasked: maskApiKey(s.apiKey),
+    // Request-scoped: true when the caller sent a session key OR the
+    // operator env key exists as fallback.
+    hasApiKey: aiKeyAvailable(),
+    // True when the server has an operator fallback key (free tier possible).
+    hasOperatorKey: Boolean(operatorKey()),
     model: s.model,
     selectionModel: s.selectionModel,
     verificationModel: s.verificationModel,
     // TheirStack is operator-supplied; reflects the env var only.
     hasTheirstackKey: Boolean(process.env["THEIRSTACK_API_KEY"]?.trim()),
-    // Shown plainly — not a secret.
-    apiEndpoint: s.apiEndpoint,
     runVerification: s.runVerification,
     generatePdf: s.generatePdf,
   };

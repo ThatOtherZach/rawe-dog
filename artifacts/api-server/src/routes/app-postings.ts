@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { loadSettings } from "../lib/settings.js";
+import { aiKeyAvailable } from "../lib/ai-context.js";
 import {
   loadPostingsFile,
   saveFilters,
@@ -82,10 +82,9 @@ function statusCounts(postings: StoredPosting[]) {
 }
 
 function statePayload(file: PostingsFile) {
-  const s = loadSettings();
   return {
     providerConfigured: Boolean(process.env["THEIRSTACK_API_KEY"]?.trim()),
-    xaiConfigured: Boolean(s.apiKey),
+    xaiConfigured: aiKeyAvailable(),
     filters: file.filters,
     filtersSource: file.filtersSource,
     lastRefreshAt: file.lastRefreshAt,
