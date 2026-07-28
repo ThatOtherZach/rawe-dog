@@ -51,19 +51,8 @@ export function Nav() {
                 )}
               </a>
             </div>
-            {/* Subtitle hidden on small screens to free up space for nav */}
-            <div className="hidden sm:block">
-              <div className="text-xs text-[var(--muted)]">
-                Resume And Work Experience - Document Output Generator
-              </div>
-              <a
-                href="https://saymservices.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] text-orange-400 hover:text-orange-300 transition"
-              >
-                Designed by Saym Services inc.
-              </a>
+            <div className="hidden text-xs text-[var(--muted)] sm:block">
+              Resume And Work Experience - Document Output Generator
             </div>
           </div>
         </div>

@@ -50,6 +50,20 @@ function App() {
         {/* XP layer — fixed, outside normal flow */}
         {/* XpNavButton is rendered inside Nav */}
         <AchievementToast />
+        <footer className="mx-auto w-full max-w-6xl px-3 pb-6 pt-2 sm:px-4">
+          <div className="border-t border-[var(--border)] pt-4 text-center text-xs text-[var(--muted)]">
+            Resume And Work Experience - Document Output Generator
+            <span className="mx-2 opacity-40">·</span>
+            <a
+              href="https://saymservices.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-orange-400 transition hover:text-orange-300"
+            >
+              Designed by Saym Services inc.
+            </a>
+          </div>
+        </footer>
       </div>
     </WouterRouter>
   );
