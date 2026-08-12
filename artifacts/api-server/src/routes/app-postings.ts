@@ -110,7 +110,13 @@ router.post("/postings/derive-filters", async (_req: Request, res: Response) => 
   try {
     const derived = await deriveFiltersFromProfile();
     const file = saveFilters(derived.filters, "derived");
-    res.json({ ok: true, ...statePayload(file), rationale: derived.rationale });
+    res.json({
+      ok: true,
+      ...statePayload(file),
+      rationale: derived.rationale,
+      directTitleQueries: derived.directTitleQueries,
+      pivotTitleQueries: derived.pivotTitleQueries,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const status =

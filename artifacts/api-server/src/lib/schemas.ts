@@ -129,6 +129,7 @@ export const FILTER_DERIVATION_SCHEMA: JsonSchemaObject = {
   additionalProperties: false,
   required: [
     "titleQueries",
+    "pivotTitleQueries",
     "countryCodes",
     "remotePreference",
     "seniority",
@@ -141,6 +142,12 @@ export const FILTER_DERIVATION_SCHEMA: JsonSchemaObject = {
     titleQueries: {
       type: "array",
       description: "2-4 short job-title search queries, plain words only",
+      items: { type: "string" },
+    },
+    pivotTitleQueries: {
+      type: "array",
+      description:
+        "1-2 adjacent 'near field' pivot title queries grounded in transferable skills, plain words only",
       items: { type: "string" },
     },
     countryCodes: {
@@ -161,7 +168,11 @@ export const FILTER_DERIVATION_SCHEMA: JsonSchemaObject = {
       description: "0-3 niche literal keywords; usually empty",
       items: { type: "string" },
     },
-    rationale: { type: "string", description: "One sentence explaining the choices" },
+    rationale: {
+      type: "string",
+      description:
+        "One or two sentences explaining the choices, including which transferable skills back the pivot titles",
+    },
   },
 };
 

@@ -503,10 +503,18 @@ export default function PostingsPage() {
       applyState(data as PostingsState);
       setEditing(true);
       const rationale = (data as { rationale?: string }).rationale;
+      const direct = (data as { directTitleQueries?: string[] }).directTitleQueries || [];
+      const pivots = (data as { pivotTitleQueries?: string[] }).pivotTitleQueries || [];
+      const split =
+        pivots.length > 0
+          ? ` Direct-fit titles: ${direct.join(", ")}. Transferable-skill pivots: ${pivots.join(
+              ", "
+            )} — delete any you don't want.`
+          : "";
       setMessage(
         rationale
-          ? `Filters derived — ${rationale} Review below, then save.`
-          : "Filters derived from your Master Profile. Review below, then save."
+          ? `Filters derived — ${rationale}${split} Review below, then save.`
+          : `Filters derived from your Master Profile.${split} Review below, then save.`
       );
       // XP: derive filters (first time) + filter change
       awardXp("derive_filters");

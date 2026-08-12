@@ -36,17 +36,19 @@ You turn an applicant's Master Profile into job-board search filters.
 
 ## Rules
 1. titleQueries: 2-4 short title queries for the applicant's strongest realistic target roles. Each query is a few plain words that must ALL appear in a job title (any order). No boolean operators, no punctuation.
-2. countryCodes: ISO-2 codes ONLY for countries where the profile shows the applicant lives or is authorized to work. Empty array if the profile does not say.
-3. remotePreference: "remote_only" only when the profile clearly prefers or requires remote work; otherwise "any".
-4. seniority: 0-2 values from junior | mid_level | senior | staff | c_level matching the applicant's current stage; empty array for no filter.
-5. maxAgeDays: 7-30. Use 14 unless the profile suggests otherwise.
-6. minSalaryUsd: 0 unless the profile states a clear salary floor in USD.
-7. descriptionKeywords: 0-3 niche, discriminating literal keywords — ONLY if the title queries alone would be far too broad. Usually empty.
-8. rationale: one sentence explaining the choices.
+2. pivotTitleQueries: 1-2 short "near field" title queries for realistic ADJACENT roles the applicant could pivot into based on transferable skills (not their direct target roles). Same format rules as titleQueries. Must not duplicate titleQueries.
+3. countryCodes: ISO-2 codes ONLY for countries where the profile shows the applicant lives or is authorized to work. Empty array if the profile does not say.
+4. remotePreference: "remote_only" only when the profile clearly prefers or requires remote work; otherwise "any".
+5. seniority: 0-2 values from junior | mid_level | senior | staff | c_level matching the applicant's current stage; empty array for no filter.
+6. maxAgeDays: 7-30. Use 14 unless the profile suggests otherwise.
+7. minSalaryUsd: 0 unless the profile states a clear salary floor in USD.
+8. descriptionKeywords: 0-3 niche, discriminating literal keywords — ONLY if the title queries alone would be far too broad. Usually empty.
+9. rationale: one or two sentences explaining the choices, including which transferable skills back the pivot titles.
 `.trim();
 
 type DerivedFilters = {
   titleQueries: string[];
+  pivotTitleQueries: string[];
   countryCodes: string[];
   remotePreference: "remote_only" | "any";
   seniority: string[];
@@ -59,6 +61,8 @@ type DerivedFilters = {
 export async function deriveFiltersFromProfile(): Promise<{
   filters: SearchFilters;
   rationale: string;
+  directTitleQueries: string[];
+  pivotTitleQueries: string[];
   model: string;
 }> {
   const master = await loadMasterProfile();
@@ -77,6 +81,7 @@ ${masterForSelection(master)}
 ## Required JSON shape
 {
   "titleQueries": ["business systems analyst"],
+  "pivotTitleQueries": ["crm implementation specialist"],
   "countryCodes": ["US"],
   "remotePreference": "remote_only",
   "seniority": ["senior"],
@@ -97,8 +102,17 @@ ${masterForSelection(master)}
     temperature: 0.2,
   });
 
+  const rawDirect = Array.isArray(data.titleQueries) ? data.titleQueries : [];
+  const rawPivot = (Array.isArray(data.pivotTitleQueries) ? data.pivotTitleQueries : [])
+    .slice(0, 2)
+    .filter(
+      (p) =>
+        typeof p === "string" &&
+        !rawDirect.some((t) => t.trim().toLowerCase() === p.trim().toLowerCase())
+    );
+
   const filters = normalizeFilters({
-    titleQueries: data.titleQueries,
+    titleQueries: [...rawDirect, ...rawPivot],
     countryCodes: data.countryCodes,
     remoteOnly: data.remotePreference === "remote_only",
     seniority: data.seniority,
@@ -114,9 +128,20 @@ ${masterForSelection(master)}
     );
   }
 
+  // After normalization (dedupe/cap), split the surviving titles back into groups.
+  const pivotSet = new Set(rawPivot.map((p) => p.trim().toLowerCase()));
+  const directTitleQueries = filters.titleQueries.filter(
+    (t) => !pivotSet.has(t.trim().toLowerCase())
+  );
+  const pivotTitleQueries = filters.titleQueries.filter((t) =>
+    pivotSet.has(t.trim().toLowerCase())
+  );
+
   return {
     filters,
     rationale: typeof data.rationale === "string" ? data.rationale : "",
+    directTitleQueries,
+    pivotTitleQueries,
     model: meta.model,
   };
 }
