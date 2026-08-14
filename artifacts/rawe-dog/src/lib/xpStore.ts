@@ -330,10 +330,25 @@ export function loadProfile(): Profile {
     const p = JSON.parse(raw) as Partial<Profile>;
     // Merge with empty to fill any missing stats fields from older versions
     const base = emptyProfile();
+
+    // Harden achievements: must be an array of objects with string id + unlockedAt.
+    // A partial / corrupted entry is dropped rather than silently falling back to []
+    // which would appear as all achievements cleared.
+    let achievements: Profile["achievements"] = [];
+    if (Array.isArray(p.achievements)) {
+      achievements = p.achievements.filter(
+        (a): a is { id: AchievementId; unlockedAt: string } =>
+          a !== null &&
+          typeof a === "object" &&
+          typeof (a as Record<string, unknown>).id === "string" &&
+          typeof (a as Record<string, unknown>).unlockedAt === "string",
+      );
+    }
+
     return {
-      xp: p.xp ?? 0,
-      achievements: p.achievements ?? [],
-      eventLog: p.eventLog ?? [],
+      xp: typeof p.xp === "number" ? p.xp : 0,
+      achievements,
+      eventLog: Array.isArray(p.eventLog) ? p.eventLog : [],
       stats: { ...base.stats, ...(p.stats ?? {}) },
     };
   } catch {
@@ -342,6 +357,33 @@ export function loadProfile(): Profile {
 }
 
 function saveProfile(p: Profile): void {
+  // Guard: never silently shrink the achievements array.
+  // If the in-memory profile somehow has fewer achievements than what is
+  // already persisted (e.g. a re-entrant write raced with a stale load),
+  // merge the persisted ones back in before writing.
+  try {
+    const existingRaw = localStorage.getItem(LS_PROFILE_KEY);
+    if (existingRaw) {
+      const existing = JSON.parse(existingRaw) as Partial<Profile>;
+      if (Array.isArray(existing.achievements) && existing.achievements.length > p.achievements.length) {
+        const ids = new Set(p.achievements.map((a) => a.id));
+        for (const a of existing.achievements) {
+          if (
+            a !== null &&
+            typeof a === "object" &&
+            typeof (a as Record<string, unknown>).id === "string" &&
+            !ids.has((a as { id: AchievementId }).id)
+          ) {
+            p.achievements.push(a as { id: AchievementId; unlockedAt: string });
+            ids.add((a as { id: AchievementId }).id);
+          }
+        }
+      }
+    }
+  } catch {
+    // If we can't read the existing record, proceed with what we have.
+  }
+
   // Keep event log trimmed to last 200 entries to avoid unbounded growth
   if (p.eventLog.length > 200) {
     p.eventLog = p.eventLog.slice(-200);
@@ -503,6 +545,17 @@ export type AwardOpts = {
   knowledgeFileCount?: number;
 };
 
+// ---------------------------------------------------------------------------
+// Re-entrancy guard for awardXp
+// ---------------------------------------------------------------------------
+
+// window.dispatchEvent is synchronous, so a listener that calls awardXp again
+// would re-enter this function before the first invocation has finished and
+// saved its profile, causing the inner call to load a stale copy and then
+// overwrite the outer call's (unsaved) achievements.  This flag makes any
+// nested / re-entrant call a no-op.
+let _awardXpInFlight = false;
+
 /**
  * Awards XP for an event, updates stats, checks achievements, persists, and
  * fires CustomEvents so the React layer can react.
@@ -510,6 +563,8 @@ export type AwardOpts = {
  * Safe to call from anywhere; no-ops silently if localStorage is unavailable.
  */
 export function awardXp(type: XpEventType, opts: AwardOpts = {}): void {
+  if (_awardXpInFlight) return;
+  _awardXpInFlight = true;
   try {
     const p = loadProfile();
     const now = new Date().toISOString();
@@ -652,6 +707,8 @@ export function awardXp(type: XpEventType, opts: AwardOpts = {}): void {
     }
   } catch {
     // Never throw from XP tracking
+  } finally {
+    _awardXpInFlight = false;
   }
 }
 
