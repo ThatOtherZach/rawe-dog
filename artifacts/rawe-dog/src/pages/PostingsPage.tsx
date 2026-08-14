@@ -16,6 +16,7 @@ const SENIORITY_OPTIONS = [
 type Filters = {
   titleQueries: string[];
   countryCodes: string[];
+  cities?: string[];
   remoteOnly: boolean;
   seniority: string[];
   maxAgeDays: number;
@@ -365,6 +366,7 @@ export default function PostingsPage() {
 
   const [titlesText, setTitlesText] = useState("");
   const [countriesText, setCountriesText] = useState("");
+  const [citiesText, setCitiesText] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [seniority, setSeniority] = useState<string[]>([]);
   const [maxAgeDays, setMaxAgeDays] = useState("14");
@@ -422,6 +424,7 @@ export default function PostingsPage() {
   const fillForm = useCallback((f: Filters) => {
     setTitlesText(f.titleQueries.join(", "));
     setCountriesText(f.countryCodes.join(", "));
+    setCitiesText(f.cities?.join(", ") ?? "");
     setRemoteOnly(f.remoteOnly);
     setSeniority(f.seniority);
     setMaxAgeDays(String(f.maxAgeDays));
@@ -464,6 +467,7 @@ export default function PostingsPage() {
     return {
       titleQueries: parseList(titlesText),
       countryCodes: parseList(countriesText).map((c) => c.toUpperCase()),
+      cities: parseList(citiesText),
       remoteOnly,
       seniority,
       maxAgeDays: Number(maxAgeDays) || 14,
@@ -872,6 +876,14 @@ export default function PostingsPage() {
                   {c}
                 </span>
               ))}
+              {filters.cities?.map((c) => (
+                <span
+                  key={c}
+                  className="rounded-full border border-[var(--border)] px-2.5 py-0.5 text-[var(--muted)]"
+                >
+                  📍 {c}
+                </span>
+              ))}
               {filters.remoteOnly && (
                 <span className="rounded-full border border-[var(--border)] px-2.5 py-0.5 text-[var(--muted)]">
                   remote only
@@ -945,6 +957,19 @@ export default function PostingsPage() {
                 />
                 <p className="mt-1 text-xs text-[var(--muted)]">
                   ISO-2 codes, e.g. US, CA. Empty = anywhere.
+                </p>
+              </div>
+              <div>
+                <label className="label">Cities (comma-separated)</label>
+                <input
+                  className="input"
+                  value={citiesText}
+                  onChange={(e) => setCitiesText(e.target.value)}
+                  placeholder="Vancouver, Toronto"
+                  disabled={busy}
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Filters cached results by location. Empty = no city filter.
                 </p>
               </div>
               <div>

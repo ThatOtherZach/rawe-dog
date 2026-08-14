@@ -50,6 +50,7 @@ type DerivedFilters = {
   titleQueries: string[];
   pivotTitleQueries: string[];
   countryCodes: string[];
+  cities?: string[];
   remotePreference: "remote_only" | "any";
   seniority: string[];
   maxAgeDays: number;
@@ -114,6 +115,7 @@ ${masterForSelection(master)}
   const filters = normalizeFilters({
     titleQueries: [...rawDirect, ...rawPivot],
     countryCodes: data.countryCodes,
+    cities: Array.isArray(data.cities) ? data.cities : [],
     remoteOnly: data.remotePreference === "remote_only",
     seniority: data.seniority,
     maxAgeDays: data.maxAgeDays,

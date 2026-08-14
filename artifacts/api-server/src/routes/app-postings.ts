@@ -82,6 +82,13 @@ function statusCounts(postings: StoredPosting[]) {
 }
 
 function statePayload(file: PostingsFile) {
+  const cities = file.filters?.cities?.length ? file.filters.cities : null;
+  const filtered = cities
+    ? file.postings.filter((sp) => {
+        const loc = (sp.posting.location ?? "").toLowerCase();
+        return cities.some((c) => loc.includes(c));
+      })
+    : file.postings;
   return {
     providerConfigured: Boolean(process.env["THEIRSTACK_API_KEY"]?.trim()),
     xaiConfigured: aiKeyAvailable(),
@@ -89,8 +96,8 @@ function statePayload(file: PostingsFile) {
     filtersSource: file.filtersSource,
     lastRefreshAt: file.lastRefreshAt,
     lastRefreshStats: file.lastRefreshStats,
-    statusCounts: statusCounts(file.postings),
-    postings: [...file.postings].sort(rankPostings).map(summarize),
+    statusCounts: statusCounts(filtered),
+    postings: [...filtered].sort(rankPostings).map(summarize),
   };
 }
 

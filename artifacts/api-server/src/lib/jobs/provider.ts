@@ -47,6 +47,8 @@ export type SearchFilters = {
   titleQueries: string[];
   /** ISO-2 country codes; empty = worldwide. */
   countryCodes: string[];
+  /** City names for post-fetch filtering (case-insensitive substring match on location). */
+  cities?: string[];
   /** true = remote jobs only; false = no remote filter. */
   remoteOnly: boolean;
   /** Subset of SENIORITY_VALUES; empty = no filter. */
@@ -65,6 +67,7 @@ export function defaultFilters(): SearchFilters {
   return {
     titleQueries: [],
     countryCodes: [],
+    cities: [],
     remoteOnly: false,
     seniority: [],
     maxAgeDays: 14,
@@ -97,6 +100,7 @@ export function normalizeFilters(
     countryCodes: strArray(raw.countryCodes, 8)
       .map((c) => c.toUpperCase())
       .filter((c) => /^[A-Z]{2}$/.test(c)),
+    cities: strArray(raw.cities, 8).map((c) => c.trim().toLowerCase().slice(0, 60)).filter(Boolean),
     remoteOnly: Boolean(raw.remoteOnly),
     seniority: strArray(raw.seniority, 5).filter((s) => seniorityAllowed.has(s)),
     maxAgeDays:

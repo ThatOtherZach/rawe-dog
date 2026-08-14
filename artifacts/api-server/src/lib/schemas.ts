@@ -155,6 +155,12 @@ export const FILTER_DERIVATION_SCHEMA: JsonSchemaObject = {
       description: "ISO-2 country codes where the applicant can work; empty if unknown",
       items: { type: "string" },
     },
+    cities: {
+      type: "array",
+      description:
+        "Short city names the user wants to target (e.g. 'Vancouver', 'Toronto'). Leave empty for remote-only or global searches.",
+      items: { type: "string" },
+    },
     remotePreference: { type: "string", enum: ["remote_only", "any"] },
     seniority: {
       type: "array",
